@@ -97,6 +97,8 @@ For training SLOs, partition failure burn, and backfill-freeze automation, see [
 
 For EKS Auto Mode, Terraform, managed-service mappings, and portability notes, see [cloud migration](docs/cloud-migration.md).
 
+For GitHub artifact attestations, SLSA provenance, Sigstore policy-controller admission, and checksum evidence, see [supply chain provenance](docs/supply-chain-provenance.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

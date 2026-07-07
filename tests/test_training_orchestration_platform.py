@@ -12,13 +12,14 @@ from training_orchestration_platform.data import generate_partition, validate_ro
 from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
 from training_orchestration_platform.gitops_release import build_gitops_plan
 from training_orchestration_platform.governance import build_governance_bundle
-from training_orchestration_platform.io import read_csv, read_json, read_jsonl
+from training_orchestration_platform.io import read_csv, read_json, read_jsonl, write_json
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.network_security import build_network_security_report
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.slo import build_slo_report
+from training_orchestration_platform.supply_chain import build_supply_chain_evidence
 from training_orchestration_platform.traceability import build_trace_report
 
 
@@ -227,10 +228,32 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         workflow = (repo / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         makefile = (repo / "Makefile").read_text(encoding="utf-8")
 
-        for expected in ["actions/upload-artifact@v6", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
+        for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
+
+    def test_supply_chain_evidence_and_policy_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        policy = (repo / "kubernetes" / "supply-chain-policy.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / "reports" / "demo.json", {"status": "ok"})
+            evidence = build_supply_chain_evidence(
+                root,
+                project="Metaflow Airflow Training Platform",
+                artifact_name="training-orchestration-demo-artifacts",
+                workflow="Training Orchestration CI",
+                namespace="mlops-training",
+            )
+
+            self.assertEqual(evidence["artifact_count"], 1)
+            self.assertEqual(len(evidence["artifacts"][0]["sha256"]), 64)
+            self.assertEqual(evidence["subject"]["attestation_action"], "actions/attest@v4")
+            self.assertTrue((root / "supply-chain" / "subject.checksums.txt").exists())
+            self.assertIn("ClusterImagePolicy", policy)
+            self.assertIn("predicateType: https://slsa.dev/provenance/v1", policy)
+            self.assertIn("policy.sigstore.dev/include", policy)
 
     def test_artifact_index_links_key_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -245,6 +268,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "traceability_report.json",
                 "governance_evidence_bundle.json",
                 "slo_error_budget.json",
+                "supply_chain_evidence.json",
                 "cloud_migration_plan.json",
             ]:
                 self.assertIn(expected, index)
@@ -280,6 +304,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(result["recovery"]["status"], "success")
             self.assertTrue((root / "reports" / "training_orchestration_dashboard.html").exists())
             self.assertTrue((root / "reports" / "index.html").exists())
+            self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())
 
     def test_backfill_is_idempotent_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

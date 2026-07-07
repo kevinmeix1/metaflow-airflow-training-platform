@@ -17,6 +17,7 @@ from .orchestrator import backfill, run_partition
 from .policy_audit import audit_platform_policy
 from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
+from .supply_chain import build_supply_chain_evidence
 from .traceability import build_trace_report
 
 
@@ -44,6 +45,13 @@ def demo(output: str | Path) -> dict:
         description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
         dashboard="training_orchestration_dashboard.html",
     )
+    supply_chain = build_supply_chain_evidence(
+        root,
+        project="Metaflow Airflow Training Platform",
+        artifact_name="training-orchestration-demo-artifacts",
+        workflow="Training Orchestration CI",
+        namespace="mlops-training",
+    )
     return {
         "initial_backfill": first,
         "idempotent_backfill": skipped,
@@ -62,6 +70,7 @@ def demo(output: str | Path) -> dict:
         "cloud_migration": cloud_migration,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
+        "supply_chain": supply_chain,
     }
 
 
@@ -120,6 +129,8 @@ def main(argv: list[str] | None = None) -> int:
     slo_parser.add_argument("--output", default=".local")
     cloud_parser = sub.add_parser("cloud-plan")
     cloud_parser.add_argument("--output", default=".local")
+    supply_chain_parser = sub.add_parser("supply-chain")
+    supply_chain_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -151,4 +162,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(slo_report(args.output), indent=2, sort_keys=True))
     elif args.command == "cloud-plan":
         print(json.dumps(build_cloud_migration_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "supply-chain":
+        print(json.dumps(build_supply_chain_evidence(args.output, project="Metaflow Airflow Training Platform", artifact_name="training-orchestration-demo-artifacts", workflow="Training Orchestration CI", namespace="mlops-training"), indent=2, sort_keys=True))
     return 0

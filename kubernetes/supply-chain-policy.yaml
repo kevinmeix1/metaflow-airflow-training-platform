@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlops-training
+  labels:
+    policy.sigstore.dev/include: "true"
+    app.kubernetes.io/part-of: metaflow-airflow-training-platform
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-policy-controller
+  namespace: cosign-system
+data:
+  no-match-policy: warn
+---
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: training-orchestration-slsa-provenance
+spec:
+  images:
+    - glob: ghcr.io/kevinmeix1/metaflow-airflow-training-platform**
+  authorities:
+    - name: github-actions-keyless
+      keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: https://github.com/kevinmeix1/metaflow-airflow-training-platform/.github/workflows/.*@refs/heads/main
+      attestations:
+        - name: slsa-provenance
+          predicateType: https://slsa.dev/provenance/v1
+          policy:
+            type: cue
+            data: |
+              predicateType: "https://slsa.dev/provenance/v1"
