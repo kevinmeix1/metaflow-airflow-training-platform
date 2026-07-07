@@ -7,6 +7,7 @@ from pathlib import Path
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .dashboard import render_dashboard
+from .disaster_recovery import build_disaster_recovery_plan
 from .gitops_release import build_gitops_plan
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
@@ -28,6 +29,7 @@ def demo(output: str | Path) -> dict:
     resource_optimization = build_resource_optimization_report(root)
     network_security = build_network_security_report(root)
     gitops_plan = build_gitops_plan(root)
+    disaster_recovery = build_disaster_recovery_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -41,6 +43,7 @@ def demo(output: str | Path) -> dict:
         "resource_optimization": resource_optimization,
         "network_security": network_security,
         "gitops_plan": gitops_plan,
+        "disaster_recovery": disaster_recovery,
         "dashboard": str(dashboard),
     }
 
@@ -78,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     network_parser.add_argument("--output", default=".local")
     gitops_parser = sub.add_parser("gitops-plan")
     gitops_parser.add_argument("--output", default=".local")
+    dr_parser = sub.add_parser("dr-plan")
+    dr_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -101,4 +106,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_network_security_report(args.output), indent=2, sort_keys=True))
     elif args.command == "gitops-plan":
         print(json.dumps(build_gitops_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "dr-plan":
+        print(json.dumps(build_disaster_recovery_plan(args.output), indent=2, sort_keys=True))
     return 0

@@ -1,0 +1,63 @@
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: training-backup-location
+  namespace: velero
+spec:
+  provider: aws
+  objectStorage:
+    bucket: mlops-platform-backups
+    prefix: metaflow-airflow-training-platform
+  config:
+    region: us-east-1
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: training-namespace-30m
+  namespace: velero
+spec:
+  schedule: "*/30 * * * *"
+  template:
+    includedNamespaces:
+      - ml-training
+    snapshotVolumes: true
+    ttl: 168h0m0s
+    storageLocation: training-backup-location
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: training-retain-snapshots
+driver: csi.example.com
+deletionPolicy: Retain
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: airflow-training-metadata-backup
+  namespace: ml-training
+spec:
+  schedule: "*/30 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: export-metadata
+              image: postgres:16
+              command: ["sh", "-c", "pg_dump --format=custom --file=/backup/training-airflow-$(date +%Y%m%d%H%M%S).dump"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restore-order
+  namespace: ml-training
+data:
+  restore-order.yaml: |
+    - namespace-and-batch-crds
+    - airflow-metadata-database
+    - partition-manifests-and-lineage
+    - mlflow-artifacts
+    - backfill-replay

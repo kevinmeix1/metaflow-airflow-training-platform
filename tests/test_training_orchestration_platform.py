@@ -8,6 +8,7 @@ from training_orchestration_platform.capacity_planner import build_backfill_plan
 from training_orchestration_platform.chaos import run_chaos_drill
 from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
+from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
 from training_orchestration_platform.gitops_release import build_gitops_plan
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.model import evaluate_gates
@@ -150,6 +151,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("backfill SLO", plan["progressive_delivery"])
             self.assertTrue(any("smoke backfill" in gate for gate in plan["gates"]))
             self.assertTrue((Path(tmp) / "reports" / "gitops_plan.json").exists())
+
+    def test_disaster_recovery_plan_and_backup_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        dr = (repo / "kubernetes" / "disaster-recovery.yaml").read_text(encoding="utf-8")
+
+        for expected in ["kind: Schedule", "BackupStorageLocation", "VolumeSnapshotClass", "restore-order"]:
+            self.assertIn(expected, dr)
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = build_disaster_recovery_plan(tmp)
+
+            self.assertLessEqual(plan["rpo_minutes"], 30)
+            self.assertEqual(plan["restore_sequence"][0]["asset"], "namespace and batch CRDs")
+            self.assertTrue(any(item["asset"] == "backfill replay" for item in plan["restore_sequence"]))
+            self.assertTrue((Path(tmp) / "reports" / "disaster_recovery_plan.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
