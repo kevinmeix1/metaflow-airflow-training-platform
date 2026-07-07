@@ -7,6 +7,7 @@ from pathlib import Path
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .dashboard import render_dashboard
+from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
 from .policy_audit import audit_platform_policy
 from .resource_optimizer import build_resource_optimization_report
@@ -24,6 +25,7 @@ def demo(output: str | Path) -> dict:
     trace_report = build_trace_report(root)
     chaos_drill = run_chaos_drill(root)
     resource_optimization = build_resource_optimization_report(root)
+    network_security = build_network_security_report(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -35,6 +37,7 @@ def demo(output: str | Path) -> dict:
         "trace_report": trace_report,
         "chaos_drill": chaos_drill,
         "resource_optimization": resource_optimization,
+        "network_security": network_security,
         "dashboard": str(dashboard),
     }
 
@@ -68,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
     chaos_parser.add_argument("--output", default=".local")
     optimize_parser = sub.add_parser("optimize-resources")
     optimize_parser.add_argument("--output", default=".local")
+    network_parser = sub.add_parser("network-security")
+    network_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -87,4 +92,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(run_chaos_drill(args.output), indent=2, sort_keys=True))
     elif args.command == "optimize-resources":
         print(json.dumps(build_resource_optimization_report(args.output), indent=2, sort_keys=True))
+    elif args.command == "network-security":
+        print(json.dumps(build_network_security_report(args.output), indent=2, sort_keys=True))
     return 0

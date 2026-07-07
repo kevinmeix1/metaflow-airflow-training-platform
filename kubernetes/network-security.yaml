@@ -1,0 +1,109 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ml-training
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: ml-training
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-training-worker-artifact-egress
+  namespace: ml-training
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: training-worker
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mlflow-tracking
+      ports:
+        - protocol: TCP
+          port: 5000
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: object-storage
+      ports:
+        - protocol: TCP
+          port: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-airflow-to-training-workers
+  namespace: ml-training
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: training-worker
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: airflow-scheduler
+      ports:
+        - protocol: TCP
+          port: 8793
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: training-strict-mtls
+  namespace: ml-training
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-airflow-launch-training
+  namespace: ml-training
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: training-worker
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/ml-training/sa/airflow-worker
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            ports: ["8793"]

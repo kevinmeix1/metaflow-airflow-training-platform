@@ -10,6 +10,7 @@ from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.model import evaluate_gates
+from training_orchestration_platform.network_security import build_network_security_report
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
@@ -120,6 +121,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("Kueue nominal quota", " ".join(report["guardrails"]))
             self.assertTrue(any("reduce_wave_width" in item["actions"] for item in report["recommendations"]))
             self.assertTrue((Path(tmp) / "reports" / "resource_optimization.json").exists())
+
+    def test_network_security_topology_and_manifests_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        network_security = (repo / "kubernetes" / "network-security.yaml").read_text(encoding="utf-8")
+
+        for expected in ["kind: NetworkPolicy", "default-deny-all", "PeerAuthentication", "mode: STRICT", "AuthorizationPolicy"]:
+            self.assertIn(expected, network_security)
+        with tempfile.TemporaryDirectory() as tmp:
+            report = build_network_security_report(tmp)
+
+            self.assertEqual(report["mtls_mode"], "STRICT")
+            self.assertEqual(report["allowed_flow_count"], 3)
+            self.assertTrue(any(flow["destination"] == "object-storage" for flow in report["allowed_flows"]))
+            self.assertTrue((Path(tmp) / "reports" / "network_security.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
