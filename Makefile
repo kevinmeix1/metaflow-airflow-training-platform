@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -17,6 +17,9 @@ dashboard:
 
 policy-audit:
 	PYTHONPATH=src python3 -m training_orchestration_platform policy-audit --output .local
+
+trace-report:
+	PYTHONPATH=src python3 -m training_orchestration_platform trace-report --output .local
 
 kubernetes-plan:
 	@find kubernetes -name '*.yaml' -maxdepth 3 -print
