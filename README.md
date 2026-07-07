@@ -93,6 +93,8 @@ For backup schedules, restore order, and RPO/RTO evidence, see [disaster recover
 
 For model cards, partition data cards, risk controls, approval records, and reproducibility hashes, see [governance evidence](docs/governance-evidence.md).
 
+For training SLOs, partition failure burn, and backfill-freeze automation, see [SLO and error budget automation](docs/slo-error-budget.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

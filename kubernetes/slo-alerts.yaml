@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demand-training-error-budget-policy
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: slo-error-budget
+data:
+  policy: |
+    multiwindow burn alerts:
+      fast_page: 14.4 burn over 5m and 1h
+      slow_page: 6.0 burn over 30m and 6h
+      ticket: 1.0 burn over 6h and 3d
+    release freeze:
+      hold bulk backfills when partition failure or recovery SLOs breach
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demand-training-slo-burn-rate
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: slo-error-budget
+spec:
+  groups:
+    - name: demand-training.slo.multiwindow
+      rules:
+        - alert: SLOBurnRateHigh
+          expr: |
+            (
+              sum(rate(training_partition_failures_total[5m])) / sum(rate(training_partition_runs_total[5m])) > (14.4 * 0.02)
+            )
+            and
+            (
+              sum(rate(training_partition_failures_total[1h])) / sum(rate(training_partition_runs_total[1h])) > (14.4 * 0.02)
+            )
+          for: 2m
+          labels:
+            severity: page
+            slo: partition_training_success
+          annotations:
+            summary: "Training partitions are burning error budget too quickly"
+            runbook: "docs/slo-error-budget.md"
+        - alert: SLOBackfillRecoveryBreach
+          expr: training_failed_partitions_without_recovery > 0
+          for: 15m
+          labels:
+            severity: page
+            slo: failed_partition_recovery
+          annotations:
+            summary: "Failed training partition has not recovered"
+            runbook: "docs/slo-error-budget.md"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: demand-training-error-budget-freeze-sync
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: slo-error-budget
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform@sha256:replace-with-built-image-digest
+              command: ["python", "-m", "training_orchestration_platform", "slo-report", "--output", "/workspace"]
+              env:
+                - name: AIRFLOW_BACKFILL_FREEZE_VARIABLE
+                  value: "training_backfill_freeze"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true

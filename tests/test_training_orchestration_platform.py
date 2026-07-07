@@ -17,6 +17,7 @@ from training_orchestration_platform.network_security import build_network_secur
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
+from training_orchestration_platform.slo import build_slo_report
 from training_orchestration_platform.traceability import build_trace_report
 
 
@@ -185,6 +186,22 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(data_card["latest_partition"], "2026-06-06")
             self.assertTrue(any(item["exists"] and len(item["sha256"]) == 64 for item in manifest["artifact_hashes"]))
             self.assertTrue((root / "reports" / "governance_evidence_bundle.json").exists())
+
+    def test_slo_error_budget_report_and_alert_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        alerts = (repo / "kubernetes" / "slo-alerts.yaml").read_text(encoding="utf-8")
+
+        for expected in ["PrometheusRule", "SLOBurnRateHigh", "multiwindow", "error-budget-freeze"]:
+            self.assertIn(expected, alerts)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            report = build_slo_report(root)
+
+            self.assertEqual(result["slo_error_budget"]["recommended_action"], "hold_bulk_backfills")
+            self.assertEqual(report["slos"][0]["name"], "partition_training_success")
+            self.assertEqual(report["run_counts"]["recovered_failed_dates"], 1)
+            self.assertTrue((root / "reports" / "slo_error_budget.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

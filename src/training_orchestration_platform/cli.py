@@ -14,6 +14,7 @@ from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
 from .policy_audit import audit_platform_policy
 from .resource_optimizer import build_resource_optimization_report
+from .slo import build_slo_report
 from .traceability import build_trace_report
 
 
@@ -32,6 +33,7 @@ def demo(output: str | Path) -> dict:
     gitops_plan = build_gitops_plan(root)
     disaster_recovery = build_disaster_recovery_plan(root)
     governance_bundle = build_governance_bundle(root)
+    slo_error_budget = build_slo_report(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -47,6 +49,7 @@ def demo(output: str | Path) -> dict:
         "gitops_plan": gitops_plan,
         "disaster_recovery": disaster_recovery,
         "governance_bundle": governance_bundle,
+        "slo_error_budget": slo_error_budget,
         "dashboard": str(dashboard),
     }
 
@@ -56,6 +59,13 @@ def governance(output: str | Path) -> dict:
     if not (root / "orchestration" / "asset_catalog.json").exists():
         backfill(root, "2026-06-01", "2026-06-03")
     return build_governance_bundle(root)
+
+
+def slo_report(output: str | Path) -> dict:
+    root = Path(output)
+    if not (root / "orchestration" / "run_history.jsonl").exists():
+        backfill(root, "2026-06-01", "2026-06-03")
+    return build_slo_report(root)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -95,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     dr_parser.add_argument("--output", default=".local")
     governance_parser = sub.add_parser("governance-bundle")
     governance_parser.add_argument("--output", default=".local")
+    slo_parser = sub.add_parser("slo-report")
+    slo_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -122,4 +134,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_disaster_recovery_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "governance-bundle":
         print(json.dumps(governance(args.output), indent=2, sort_keys=True))
+    elif args.command == "slo-report":
+        print(json.dumps(slo_report(args.output), indent=2, sort_keys=True))
     return 0
