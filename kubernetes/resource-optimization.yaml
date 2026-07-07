@@ -1,0 +1,98 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: metaflow-training-worker-vpa-recommender
+  namespace: ml-training
+spec:
+  targetRef:
+    apiVersion: batch/v1
+    kind: Job
+    name: metaflow-training-worker
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: ["cpu", "memory"]
+        minAllowed:
+          cpu: 1500m
+          memory: 4Gi
+        maxAllowed:
+          cpu: "6"
+          memory: 12Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: airflow-triggerer-hpa
+  namespace: ml-training
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: airflow-triggerer
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: AverageValue
+          averageValue: 1Gi
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 180
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-capacity-pools
+  namespace: ml-training
+data:
+  pools.json: |
+    [
+      {"name": "metaflow_training", "slots": 4, "description": "Bound parallel training tasks to Kueue nominal quota"},
+      {"name": "mlflow_artifacts", "slots": 2, "description": "Protect artifact and registry IO"},
+      {"name": "data_quality", "slots": 3, "description": "Let validations run without starving model workers"}
+    ]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-resource-optimization-alerts
+  namespace: ml-training
+spec:
+  groups:
+    - name: training.resource.optimization
+      rules:
+        - alert: BackfillQueueSaturation
+          expr: kueue_pending_workloads{localqueue="demand-training-queue"} > 4
+          for: 20m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backfill queue is saturated; reduce wave width or request more nominal quota."
+        - alert: AirflowTriggererCpuSaturation
+          expr: avg(rate(container_cpu_usage_seconds_total{namespace="ml-training", pod=~"airflow-triggerer.*"}[5m])) > 0.75
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Airflow triggerer is near saturation; add triggerer capacity before increasing deferrable sensors."

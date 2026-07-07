@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -24,6 +24,9 @@ trace-report:
 chaos-drill:
 	PYTHONPATH=src python3 -m training_orchestration_platform chaos-drill --output .local
 
+optimize-resources:
+	PYTHONPATH=src python3 -m training_orchestration_platform optimize-resources --output .local
+
 kubernetes-plan:
 	@find kubernetes -name '*.yaml' -maxdepth 3 -print
 
@@ -31,6 +34,7 @@ minikube-up:
 	@echo "Start Minikube and apply the training mesh workloads:"
 	@echo "  minikube start --cpus=4 --memory=8192"
 	@echo "  kubectl apply -f kubernetes/training-mesh-workloads.yaml"
+	@echo "  kubectl apply -f kubernetes/resource-optimization.yaml"
 	@echo "  kubectl apply -f kubernetes/chaos-experiments.yaml"
 
 test:

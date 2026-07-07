@@ -12,6 +12,7 @@ from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.policy_audit import audit_platform_policy
+from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.traceability import build_trace_report
 
 
@@ -105,6 +106,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(report["scenario_count"], 3)
             self.assertTrue(any(scenario["fault"] == "StressChaos" for scenario in report["scenarios"]))
             self.assertTrue((Path(tmp) / "reports" / "chaos_drill_report.json").exists())
+
+    def test_resource_optimization_and_autoscaling_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        optimization = (repo / "kubernetes" / "resource-optimization.yaml").read_text(encoding="utf-8")
+
+        for expected in ["VerticalPodAutoscaler", "HorizontalPodAutoscaler", "PrometheusRule", "airflow-capacity-pools", "stabilizationWindowSeconds: 300"]:
+            self.assertIn(expected, optimization)
+        with tempfile.TemporaryDirectory() as tmp:
+            report = build_resource_optimization_report(tmp)
+
+            self.assertEqual(report["summary"]["workload_count"], 3)
+            self.assertIn("Kueue nominal quota", " ".join(report["guardrails"]))
+            self.assertTrue(any("reduce_wave_width" in item["actions"] for item in report["recommendations"]))
+            self.assertTrue((Path(tmp) / "reports" / "resource_optimization.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

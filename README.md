@@ -83,6 +83,8 @@ For OpenTelemetry-style runtime traces, see [observability and tracing](docs/obs
 
 For controlled failure injection and recovery objectives, see [resilience and chaos drills](docs/resilience-chaos.md).
 
+For workload right-sizing, HPA/VPA guardrails, and Airflow pool sizing, see [resource optimization](docs/resource-optimization.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

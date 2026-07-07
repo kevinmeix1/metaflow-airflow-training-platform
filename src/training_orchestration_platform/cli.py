@@ -9,6 +9,7 @@ from .chaos import run_chaos_drill
 from .dashboard import render_dashboard
 from .orchestrator import backfill, run_partition
 from .policy_audit import audit_platform_policy
+from .resource_optimizer import build_resource_optimization_report
 from .traceability import build_trace_report
 
 
@@ -22,6 +23,7 @@ def demo(output: str | Path) -> dict:
     policy_audit = audit_platform_policy(Path.cwd(), output_root=root)
     trace_report = build_trace_report(root)
     chaos_drill = run_chaos_drill(root)
+    resource_optimization = build_resource_optimization_report(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -32,6 +34,7 @@ def demo(output: str | Path) -> dict:
         "policy_audit": policy_audit,
         "trace_report": trace_report,
         "chaos_drill": chaos_drill,
+        "resource_optimization": resource_optimization,
         "dashboard": str(dashboard),
     }
 
@@ -63,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     trace_parser.add_argument("--output", default=".local")
     chaos_parser = sub.add_parser("chaos-drill")
     chaos_parser.add_argument("--output", default=".local")
+    optimize_parser = sub.add_parser("optimize-resources")
+    optimize_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -80,4 +85,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_trace_report(args.output), indent=2, sort_keys=True))
     elif args.command == "chaos-drill":
         print(json.dumps(run_chaos_drill(args.output), indent=2, sort_keys=True))
+    elif args.command == "optimize-resources":
+        print(json.dumps(build_resource_optimization_report(args.output), indent=2, sort_keys=True))
     return 0
