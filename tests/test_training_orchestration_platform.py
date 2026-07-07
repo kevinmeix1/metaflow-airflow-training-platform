@@ -6,6 +6,7 @@ from pathlib import Path
 
 from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
 from training_orchestration_platform.chaos import run_chaos_drill
+from training_orchestration_platform.cloud_migration import build_cloud_migration_plan
 from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
@@ -202,6 +203,24 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(report["slos"][0]["name"], "partition_training_success")
             self.assertEqual(report["run_counts"]["recovered_failed_dates"], 1)
             self.assertTrue((root / "reports" / "slo_error_budget.json").exists())
+
+    def test_cloud_migration_plan_and_infra_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        nodepools = (repo / "kubernetes" / "cloud-nodepools.yaml").read_text(encoding="utf-8")
+        terraform = (repo / "infra" / "terraform" / "aws" / "main.tf").read_text(encoding="utf-8")
+
+        for expected in ["NodePool", "EC2NodeClass", "WhenEmptyOrUnderutilized"]:
+            self.assertIn(expected, nodepools)
+        for expected in ["cluster_compute_config", "node_pools", "aws_s3_bucket"]:
+            self.assertIn(expected, terraform)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            plan = build_cloud_migration_plan(root)
+
+            self.assertEqual(result["cloud_migration"]["primary_target"], "AWS EKS Auto Mode")
+            self.assertEqual(plan["managed_service_mapping"]["queueing"], "Kueue on EKS for batch admission and fair sharing")
+            self.assertTrue((root / "reports" / "cloud_migration_plan.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

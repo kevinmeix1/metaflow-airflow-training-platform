@@ -95,6 +95,8 @@ For model cards, partition data cards, risk controls, approval records, and repr
 
 For training SLOs, partition failure burn, and backfill-freeze automation, see [SLO and error budget automation](docs/slo-error-budget.md).
 
+For EKS Auto Mode, Terraform, managed-service mappings, and portability notes, see [cloud migration](docs/cloud-migration.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

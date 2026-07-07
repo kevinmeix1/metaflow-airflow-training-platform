@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
+from .cloud_migration import build_cloud_migration_plan
 from .dashboard import render_dashboard
 from .disaster_recovery import build_disaster_recovery_plan
 from .gitops_release import build_gitops_plan
@@ -34,6 +35,7 @@ def demo(output: str | Path) -> dict:
     disaster_recovery = build_disaster_recovery_plan(root)
     governance_bundle = build_governance_bundle(root)
     slo_error_budget = build_slo_report(root)
+    cloud_migration = build_cloud_migration_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -50,6 +52,7 @@ def demo(output: str | Path) -> dict:
         "disaster_recovery": disaster_recovery,
         "governance_bundle": governance_bundle,
         "slo_error_budget": slo_error_budget,
+        "cloud_migration": cloud_migration,
         "dashboard": str(dashboard),
     }
 
@@ -107,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     governance_parser.add_argument("--output", default=".local")
     slo_parser = sub.add_parser("slo-report")
     slo_parser.add_argument("--output", default=".local")
+    cloud_parser = sub.add_parser("cloud-plan")
+    cloud_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -136,4 +141,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(governance(args.output), indent=2, sort_keys=True))
     elif args.command == "slo-report":
         print(json.dumps(slo_report(args.output), indent=2, sort_keys=True))
+    elif args.command == "cloud-plan":
+        print(json.dumps(build_cloud_migration_plan(args.output), indent=2, sort_keys=True))
     return 0

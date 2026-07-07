@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -42,6 +42,9 @@ governance-bundle:
 slo-report:
 	PYTHONPATH=src python3 -m training_orchestration_platform slo-report --output .local
 
+cloud-plan:
+	PYTHONPATH=src python3 -m training_orchestration_platform cloud-plan --output .local
+
 kubernetes-plan:
 	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
 
@@ -55,6 +58,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/disaster-recovery.yaml"
 	@echo "  kubectl apply -f kubernetes/governance-evidence.yaml"
 	@echo "  kubectl apply -f kubernetes/slo-alerts.yaml"
+	@echo "  kubectl apply -f kubernetes/cloud-nodepools.yaml"
 	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"
 
 test:
