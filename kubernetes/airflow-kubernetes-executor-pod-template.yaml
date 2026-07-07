@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: airflow-training-worker-template
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    app.kubernetes.io/component: airflow-worker-template
+spec:
+  serviceAccountName: demand-training-runner
+  priorityClassName: training-backfill-priority
+  restartPolicy: Never
+  nodeSelector:
+    workload-class: batch
+  tolerations:
+    - key: batch
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+  initContainers:
+    - name: prepare-workspace
+      image: busybox:1.36
+      command: ["sh", "-c", "mkdir -p /workspace/.local && chmod -R 0775 /workspace"]
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+  containers:
+    - name: base
+      image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+      command: ["bash", "-lc", "make demo"]
+      envFrom:
+        - configMapRef:
+            name: demand-training-config
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+  volumes:
+    - name: workspace
+      emptyDir:
+        sizeLimit: 10Gi

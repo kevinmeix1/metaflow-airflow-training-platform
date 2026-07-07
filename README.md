@@ -73,6 +73,8 @@ See [production-grade refinements](docs/production-grade-refinements.md) for the
 
 For the latest training mesh orchestration pass, see [advanced orchestration assessment](docs/advanced-orchestration-assessment.md).
 
+For the Kubernetes/Airflow robustness layer, see [Kubernetes and Airflow robustness](docs/kubernetes-airflow-robustness.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.
