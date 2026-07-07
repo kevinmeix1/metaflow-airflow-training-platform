@@ -22,7 +22,9 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["KubernetesPodOperator", "task_group", "BranchPythonOperator", "Asset", "expand("]:
             self.assertIn(expected, dag_text)
-        for expected in ["CronJob", "completionMode: Indexed", "parallelism: 4", "RoleBinding", "ConfigMap"]:
+        for expected in ["deferrable=True", "pod_template_file", "capacity_admission", "reserve_kueue_backfill_quota"]:
+            self.assertIn(expected, dag_text)
+        for expected in ["CronJob", "completionMode: Indexed", "parallelism: 4", "RoleBinding", "ConfigMap", "kueue.x-k8s.io/queue-name"]:
             self.assertIn(expected, workload_text)
 
     def test_kubernetes_governance_and_airflow_pod_template_exist(self) -> None:
@@ -34,6 +36,23 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn(expected, governance)
         for expected in ["initContainers", "nodeSelector", "tolerations", "emptyDir", "securityContext"]:
             self.assertIn(expected, pod_template)
+
+    def test_kueue_backfill_admission_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        admission = (repo / "kubernetes" / "kueue-admission-control.yaml").read_text(encoding="utf-8")
+
+        for expected in [
+            "ResourceFlavor",
+            "ClusterQueue",
+            "LocalQueue",
+            "WorkloadPriorityClass",
+            "demand-training-queue",
+            "completionMode: Indexed",
+            "backoffLimitPerIndex",
+            "borrowingLimit",
+            "preemption",
+        ]:
+            self.assertIn(expected, admission)
 
     def test_demo_runs_backfill_failure_recovery_and_dashboard(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,0 +1,81 @@
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: batch-cpu
+spec:
+  nodeLabels:
+    workload-class: batch
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: WorkloadPriorityClass
+metadata:
+  name: backfill-critical
+value: 80000
+description: "Partitioned backfills, recovery jobs, and champion retraining."
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: demand-training-cluster-queue
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "pods"]
+      flavors:
+        - name: batch-cpu
+          resources:
+            - name: cpu
+              nominalQuota: "16"
+              borrowingLimit: "8"
+            - name: memory
+              nominalQuota: 48Gi
+              borrowingLimit: 16Gi
+            - name: pods
+              nominalQuota: "60"
+  preemption:
+    reclaimWithinCohort: Any
+    withinClusterQueue: LowerPriority
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: demand-training-queue
+  namespace: ml-training
+spec:
+  clusterQueue: demand-training-cluster-queue
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demand-training-admission-smoke
+  namespace: ml-training
+  labels:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    kueue.x-k8s.io/priority-class: backfill-critical
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    app.kubernetes.io/component: admission-smoke
+spec:
+  parallelism: 4
+  completions: 4
+  completionMode: Indexed
+  backoffLimitPerIndex: 1
+  maxFailedIndexes: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      priorityClassName: training-backfill-priority
+      restartPolicy: Never
+      containers:
+        - name: partition-admission-smoke
+          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+          command: ["bash", "-lc"]
+          args:
+            - "python -m training_orchestration_platform run --date 2026-06-01"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"

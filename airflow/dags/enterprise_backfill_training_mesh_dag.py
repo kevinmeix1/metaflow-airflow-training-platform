@@ -31,6 +31,14 @@ def pod(task_id: str, command: str, *, pool: str = "training_pool", priority_wei
         get_logs=True,
         is_delete_operator_pod=True,
         in_cluster=True,
+        deferrable=True,
+        logging_interval=60,
+        reattach_on_restart=True,
+        on_finish_action="delete_pod",
+        on_kill_action="delete_pod",
+        startup_timeout_seconds=300,
+        execution_timeout=timedelta(hours=4),
+        pod_template_file="/opt/airflow/dags/repo/kubernetes/airflow-kubernetes-executor-pod-template.yaml",
         pool=pool,
         priority_weight=priority_weight,
         retries=2,
@@ -83,6 +91,26 @@ if AIRFLOW_AVAILABLE:
             contract >> [freshness, volume, distribution]
             return distribution
 
+        @task_group(group_id="capacity_admission")
+        def capacity_admission_group():
+            reserve_backfill_quota = pod(
+                "reserve_kueue_backfill_quota",
+                "kubectl get localqueue demand-training-queue -n ml-training",
+                priority_weight=5,
+            )
+            inspect_cluster_queue = pod(
+                "inspect_cluster_queue_headroom",
+                "kubectl get clusterqueue demand-training-cluster-queue -o yaml",
+                priority_weight=4,
+            )
+            wait_for_partition_workers = pod(
+                "wait_for_partition_workers_deferrable",
+                "kubectl wait --for=condition=Complete job/demand-training-admission-smoke -n ml-training --timeout=15m",
+                priority_weight=4,
+            )
+            reserve_backfill_quota >> inspect_cluster_queue >> wait_for_partition_workers
+            return wait_for_partition_workers
+
         @task_group(group_id="metaflow_training_grid")
         def training_grid_group(grid: list[dict]):
             @task(pool="metaflow_training_pool", retries=2)
@@ -117,7 +145,7 @@ if AIRFLOW_AVAILABLE:
 
         manifest = build_partition_manifest()
         grid = expand_domain_family_grid(manifest)
-        start >> manifest >> quality_mesh_group() >> training_grid_group(grid) >> choose_champion(grid) >> select_champion
+        start >> manifest >> capacity_admission_group() >> quality_mesh_group() >> training_grid_group(grid) >> choose_champion(grid) >> select_champion
         select_champion >> register >> publish_dashboard >> publish_lineage >> end
         select_champion >> quarantine >> publish_lineage
 

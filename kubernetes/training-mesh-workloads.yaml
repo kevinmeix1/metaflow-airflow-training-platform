@@ -61,6 +61,10 @@ spec:
   successfulJobsHistoryLimit: 5
   failedJobsHistoryLimit: 5
   jobTemplate:
+    metadata:
+      labels:
+        kueue.x-k8s.io/queue-name: demand-training-queue
+        kueue.x-k8s.io/priority-class: backfill-critical
     spec:
       parallelism: 4
       completions: 4
