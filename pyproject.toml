@@ -1,0 +1,14 @@
+[project]
+name = "metaflow-airflow-training-platform"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+integrations = [
+  "metaflow>=2.12",
+  "apache-airflow>=2.9",
+  "mlflow>=2.14",
+  "great-expectations>=0.18",
+  "prometheus-client>=0.20"
+]

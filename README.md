@@ -1,0 +1,95 @@
+# Metaflow + Airflow Training Orchestration Platform
+
+A production-style training orchestration project that demonstrates partitioned backfills, retryable task runs, Metaflow-style training, Airflow scheduling, MLflow-style tracking, asset lineage, failure recovery, and training health observability.
+
+The default demo runs locally with no external services. Airflow and Metaflow integration files show how the same lifecycle maps to production orchestration.
+
+![Training orchestration dashboard](docs/screenshots/dashboard.png)
+
+## What This Demonstrates
+
+- Daily partitioned training data
+- Backfills across date ranges
+- Idempotent reruns that skip successful partitions
+- Forced recovery runs for failed partitions
+- Retryable task-level metadata
+- Data validation gates
+- Metaflow-style train and evaluate flow
+- MLflow-style run and artifact logging
+- Asset catalog and lineage graph
+- Airflow DAG shape for scheduled catchup
+- Dashboard for run history, model quality, failures, and lineage
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Airflow daily schedule"] --> B["Partition extraction"]
+    B --> C["Data validation"]
+    C --> D["Metaflow training flow"]
+    D --> E["Model evaluation gates"]
+    E -->|pass| F["MLflow-style run"]
+    E -->|fail| G["Failed run metadata"]
+    F --> H["Asset catalog"]
+    G --> H
+    H --> I["Lineage graph"]
+    H --> J["Training dashboard"]
+    K["Backfill command"] --> B
+```
+
+## Quick Start
+
+```bash
+make demo
+make test
+```
+
+Open the generated dashboard:
+
+```bash
+open .local/reports/training_orchestration_dashboard.html
+```
+
+## Commands
+
+```bash
+make demo      # run initial backfill, idempotency check, failure drill, recovery, dashboard
+make backfill  # run a fixed example backfill
+make run       # run one fixed partition
+make dashboard # rebuild dashboard from existing metadata
+make test      # run tests
+```
+
+You can also call the CLI directly:
+
+```bash
+PYTHONPATH=src python3 -m training_orchestration_platform backfill --output .local --start 2026-06-01 --end 2026-06-05
+PYTHONPATH=src python3 -m training_orchestration_platform run --output .local --date 2026-06-06 --force
+```
+
+## Production-Grade Refinements
+
+See [production-grade refinements](docs/production-grade-refinements.md) for the asset-aware Airflow DAG, partition manifests, SHA-256 input fingerprints, lineage, and backfill semantics.
+
+## Airflow And Metaflow Split
+
+Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.
+
+The local implementation mirrors that split:
+
+- `airflow/dags/demand_training_dag.py` shows the DAG shape.
+- `metaflow_flows/demand_training_flow.py` shows the training flow shape.
+- `src/training_orchestration_platform/orchestrator.py` runs the local equivalent.
+
+## Failure Recovery
+
+The demo intentionally creates a failed training run for `2026-06-06`, then reruns that partition with `force=True`. The run history keeps both records, so reviewers can see the failure and recovery trail.
+
+## Interview Talking Points
+
+- Why backfills should be idempotent by partition.
+- How Airflow catchup differs from a model retraining trigger.
+- Why Metaflow is useful for artifact lineage and step retry.
+- How MLflow run metadata connects model artifacts to training data.
+- How to design run tables for incident response.
+- How asset lineage answers "what downstream model used this partition?"

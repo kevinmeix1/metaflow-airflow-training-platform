@@ -1,0 +1,47 @@
+contract_name: daily_demand_training_partition
+owner: ml-platform
+version: 1
+partition_key: ds
+required_columns:
+  - ds
+  - store_id
+  - sku
+  - price
+  - promo
+  - inventory
+  - units_sold
+columns:
+  ds:
+    type: date
+    required: true
+  store_id:
+    type: string
+    required: true
+  sku:
+    type: string
+    allowed_values:
+      - coffee
+      - tea
+      - juice
+      - water
+      - snack
+  price:
+    type: float
+    min: 0
+  promo:
+    type: integer
+    allowed_values:
+      - 0
+      - 1
+  inventory:
+    type: integer
+    min: 0
+  units_sold:
+    type: integer
+    min: 0
+quality_gates:
+  row_count_minimum: 100
+model_gates:
+  rmse_max: 7.5
+  mape_max: 0.26
+  max_sku_mae: 6.8
