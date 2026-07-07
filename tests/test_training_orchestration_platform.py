@@ -229,8 +229,25 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
+
+    def test_artifact_index_links_key_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            index = (root / "reports" / "index.html").read_text(encoding="utf-8")
+
+            self.assertTrue(result["artifact_index"].endswith("index.html"))
+            for expected in [
+                "training_orchestration_dashboard.html",
+                "backfill_summary.json",
+                "traceability_report.json",
+                "governance_evidence_bundle.json",
+                "slo_error_budget.json",
+                "cloud_migration_plan.json",
+            ]:
+                self.assertIn(expected, index)
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -262,6 +279,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(result["failure_drill"]["failed_count"], 1)
             self.assertEqual(result["recovery"]["status"], "success")
             self.assertTrue((root / "reports" / "training_orchestration_dashboard.html").exists())
+            self.assertTrue((root / "reports" / "index.html").exists())
 
     def test_backfill_is_idempotent_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

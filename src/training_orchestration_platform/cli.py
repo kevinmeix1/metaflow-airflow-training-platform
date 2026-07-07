@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .artifact_index import render_artifact_index
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
@@ -37,6 +38,12 @@ def demo(output: str | Path) -> dict:
     slo_error_budget = build_slo_report(root)
     cloud_migration = build_cloud_migration_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
+    artifact_index = render_artifact_index(
+        root,
+        title="Metaflow Airflow Training Platform",
+        description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
+        dashboard="training_orchestration_dashboard.html",
+    )
     return {
         "initial_backfill": first,
         "idempotent_backfill": skipped,
@@ -54,6 +61,7 @@ def demo(output: str | Path) -> dict:
         "slo_error_budget": slo_error_budget,
         "cloud_migration": cloud_migration,
         "dashboard": str(dashboard),
+        "artifact_index": str(artifact_index),
     }
 
 
