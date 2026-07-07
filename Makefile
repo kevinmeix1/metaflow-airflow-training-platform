@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -30,8 +30,11 @@ optimize-resources:
 network-security:
 	PYTHONPATH=src python3 -m training_orchestration_platform network-security --output .local
 
+gitops-plan:
+	PYTHONPATH=src python3 -m training_orchestration_platform gitops-plan --output .local
+
 kubernetes-plan:
-	@find kubernetes -name '*.yaml' -maxdepth 3 -print
+	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
 
 minikube-up:
 	@echo "Start Minikube and apply the training mesh workloads:"
@@ -40,6 +43,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/resource-optimization.yaml"
 	@echo "  kubectl apply -f kubernetes/network-security.yaml"
 	@echo "  kubectl apply -f kubernetes/chaos-experiments.yaml"
+	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v

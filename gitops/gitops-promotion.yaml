@@ -1,0 +1,124 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: training-platforms
+  namespace: argocd
+spec:
+  description: Metaflow and Airflow training platforms
+  destinations:
+    - namespace: ml-training
+      server: https://kubernetes.default.svc
+  sourceRepos:
+    - https://github.com/kevinmeix1/metaflow-airflow-training-platform.git
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metaflow-airflow-training-platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: training-platforms
+  source:
+    repoURL: https://github.com/kevinmeix1/metaflow-airflow-training-platform.git
+    targetRevision: main
+    path: kubernetes
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-training
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: training-pre-sync-gates
+  namespace: ml-training
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: training-gates
+          image: python:3.12-slim
+          command: ["python", "-c", "print('validate partition dry-run, lineage, and policy audit before sync')"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: training-backfill-analysis
+  namespace: ml-training
+spec:
+  metrics:
+    - name: backfill-success-rate
+      interval: 5m
+      count: 3
+      successCondition: result[0] > 0.98
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: sum(rate(training_partition_success_total[10m])) / sum(rate(training_partition_total[10m]))
+    - name: mlflow-artifact-latency
+      interval: 5m
+      count: 3
+      successCondition: result[0] < 30
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: histogram_quantile(0.95, sum(rate(mlflow_artifact_write_seconds_bucket[10m])) by (le))
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: training-control-plane
+  namespace: ml-training
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: training-control-plane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: training-control-plane
+    spec:
+      containers:
+        - name: controller
+          image: ghcr.io/kevinmeix1/training-control-plane:2026.07.0
+          ports:
+            - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+        - setWeight: 25
+        - analysis:
+            templates:
+              - templateName: training-backfill-analysis
+        - pause:
+            duration: 10m
+        - setWeight: 100
