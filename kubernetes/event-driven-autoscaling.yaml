@@ -1,0 +1,52 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: demand-training-kafka-scaledjob
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    app.kubernetes.io/component: event-driven-backfill
+spec:
+  pollingInterval: 30
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 10
+  maxReplicaCount: 8
+  scalingStrategy:
+    strategy: accurate
+  jobTargetRef:
+    parallelism: 1
+    completions: 1
+    backoffLimit: 2
+    template:
+      metadata:
+        labels:
+          kueue.x-k8s.io/queue-name: demand-training-queue
+          kueue.x-k8s.io/priority-class: backfill-critical
+      spec:
+        serviceAccountName: demand-training-runner
+        restartPolicy: Never
+        containers:
+          - name: partition-worker
+            image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+            command: ["bash", "-lc"]
+            args:
+              - "python -m training_orchestration_platform run --date ${PARTITION_DATE:-2026-06-01}"
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "2"
+                memory: "2Gi"
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: redpanda.kafka.svc.cluster.local:9092
+        consumerGroup: demand-training-workers
+        topic: demand-training-partitions
+        lagThreshold: "5"
+        activationLagThreshold: "1"
+        offsetResetPolicy: latest
+        allowIdleConsumers: "false"
+        limitToPartitionsWithLag: "true"
+        version: "1.0.0"

@@ -48,6 +48,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     latest_healthy = bool(successes) and (not failures or successes[-1].get("timestamp", "") > failures[-1].get("timestamp", ""))
     assets = read_json(root / "orchestration" / "asset_catalog.json") if (root / "orchestration" / "asset_catalog.json").exists() else {}
     lineage = read_json(root / "orchestration" / "lineage.json") if (root / "orchestration" / "lineage.json").exists() else {}
+    capacity_plan = read_json(root / "reports" / "backfill_capacity_plan.json") if (root / "reports" / "backfill_capacity_plan.json").exists() else {}
     recent = [
         {
             "date": row.get("ds"),
@@ -133,6 +134,15 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
             </div>
           </div>
           <div>
+            <div class="panel">
+              <h2>Backfill Capacity Plan</h2>
+              <div class="summary">
+                <div><span>Workloads</span><strong>{esc(capacity_plan.get('workload_count', 'n/a'))}</strong></div>
+                <div><span>Waves</span><strong>{esc(capacity_plan.get('wave_count', 'n/a'))}</strong></div>
+                <div><span>Queue</span><strong>{esc(capacity_plan.get('queue', 'n/a'))}</strong></div>
+                <div><span>Skipped partitions</span><strong>{esc(capacity_plan.get('skipped_partitions', []))}</strong></div>
+              </div>
+            </div>
             <div class="panel">
               <h2>Asset Catalog</h2>
               <div class="summary">

@@ -1,4 +1,4 @@
-.PHONY: demo run backfill dashboard kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -8,6 +8,9 @@ run:
 
 backfill:
 	PYTHONPATH=src python3 -m training_orchestration_platform backfill --output .local --start 2026-06-01 --end 2026-06-05
+
+plan-backfill:
+	PYTHONPATH=src python3 -m training_orchestration_platform plan-backfill --output .local --start 2026-06-01 --end 2026-06-07
 
 dashboard:
 	PYTHONPATH=src python3 -m training_orchestration_platform dashboard --output .local

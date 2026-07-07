@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
 from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
@@ -53,6 +54,33 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             "preemption",
         ]:
             self.assertIn(expected, admission)
+
+    def test_event_driven_autoscaling_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        autoscaling = (repo / "kubernetes" / "event-driven-autoscaling.yaml").read_text(encoding="utf-8")
+
+        for expected in ["ScaledJob", "kafka", "lagThreshold", "limitToPartitionsWithLag", "demand-training-queue"]:
+            self.assertIn(expected, autoscaling)
+
+    def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan = build_backfill_plan(root, "2026-06-01", "2026-06-03")
+            oversized = pack_waves(
+                [
+                    {"partition": "2026-06-01", "model_family": "inventory_capped", "cpu": 2.0, "memory_gib": 3.0, "priority": "backfill-critical"},
+                    {"partition": "2026-06-01", "model_family": "promo_lift", "cpu": 1.5, "memory_gib": 2.0, "priority": "backfill-critical"},
+                    {"partition": "2026-06-02", "model_family": "inventory_capped", "cpu": 2.0, "memory_gib": 3.0, "priority": "backfill-critical"},
+                ],
+                max_cpu=3.0,
+                max_memory_gib=4.0,
+                max_parallelism=2,
+            )
+
+            self.assertEqual(plan["workload_count"], 9)
+            self.assertGreaterEqual(plan["wave_count"], 3)
+            self.assertTrue(all(wave["cpu"] <= 6.0 and wave["memory_gib"] <= 10.0 for wave in plan["waves"]))
+            self.assertEqual(len(oversized), 3)
 
     def test_demo_runs_backfill_failure_recovery_and_dashboard(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
