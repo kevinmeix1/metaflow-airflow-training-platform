@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
+from training_orchestration_platform.chaos import run_chaos_drill
 from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
@@ -90,6 +91,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((Path(tmp) / "reports" / "trace_report.json").exists())
         for expected in ["kind: ConfigMap", "otlp", "k8sattributes", "memory_limiter", "prometheus", "batch"]:
             self.assertIn(expected, collector)
+
+    def test_chaos_drill_and_chaos_mesh_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        chaos_manifest = (repo / "kubernetes" / "chaos-experiments.yaml").read_text(encoding="utf-8")
+
+        for expected in ["PodChaos", "NetworkChaos", "StressChaos", "Schedule", "concurrencyPolicy: Forbid", "partition-worker-pod-kill"]:
+            self.assertIn(expected, chaos_manifest)
+        with tempfile.TemporaryDirectory() as tmp:
+            report = run_chaos_drill(tmp)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["scenario_count"], 3)
+            self.assertTrue(any(scenario["fault"] == "StressChaos" for scenario in report["scenarios"]))
+            self.assertTrue((Path(tmp) / "reports" / "chaos_drill_report.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

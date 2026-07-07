@@ -1,0 +1,67 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: partition-worker-pod-kill
+  namespace: ml-training
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces: ["ml-training"]
+    labelSelectors:
+      app.kubernetes.io/name: metaflow-airflow-training-platform
+  duration: "30s"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: mlflow-artifact-delay
+  namespace: ml-training
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces: ["ml-training"]
+    labelSelectors:
+      app.kubernetes.io/name: metaflow-airflow-training-platform
+  delay:
+    latency: "500ms"
+    correlation: "25"
+    jitter: "100ms"
+  duration: "3m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: backfill-node-cpu-pressure
+  namespace: ml-training
+spec:
+  mode: one
+  selector:
+    namespaces: ["ml-training"]
+    labelSelectors:
+      app.kubernetes.io/component: admission-smoke
+  stressors:
+    cpu:
+      workers: 1
+      load: 70
+  duration: "3m"
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: weekly-training-chaos-drill
+  namespace: ml-training
+spec:
+  schedule: "0 8 * * 1"
+  type: PodChaos
+  historyLimit: 3
+  concurrencyPolicy: Forbid
+  podChaos:
+    action: pod-kill
+    mode: one
+    selector:
+      namespaces: ["ml-training"]
+      labelSelectors:
+        app.kubernetes.io/name: metaflow-airflow-training-platform
+    duration: "30s"

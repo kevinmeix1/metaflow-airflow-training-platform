@@ -81,6 +81,8 @@ For the policy-as-code audit layer, see [security and governance](docs/security-
 
 For OpenTelemetry-style runtime traces, see [observability and tracing](docs/observability-tracing.md).
 
+For controlled failure injection and recovery objectives, see [resilience and chaos drills](docs/resilience-chaos.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

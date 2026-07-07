@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .capacity_planner import build_backfill_plan
+from .chaos import run_chaos_drill
 from .dashboard import render_dashboard
 from .orchestrator import backfill, run_partition
 from .policy_audit import audit_platform_policy
@@ -20,6 +21,7 @@ def demo(output: str | Path) -> dict:
     capacity_plan = build_backfill_plan(root, "2026-06-01", "2026-06-07")
     policy_audit = audit_platform_policy(Path.cwd(), output_root=root)
     trace_report = build_trace_report(root)
+    chaos_drill = run_chaos_drill(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     return {
         "initial_backfill": first,
@@ -29,6 +31,7 @@ def demo(output: str | Path) -> dict:
         "capacity_plan": capacity_plan,
         "policy_audit": policy_audit,
         "trace_report": trace_report,
+        "chaos_drill": chaos_drill,
         "dashboard": str(dashboard),
     }
 
@@ -58,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     audit_parser.add_argument("--output", default=".local")
     trace_parser = sub.add_parser("trace-report")
     trace_parser.add_argument("--output", default=".local")
+    chaos_parser = sub.add_parser("chaos-drill")
+    chaos_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -73,4 +78,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(audit_platform_policy(Path.cwd(), output_root=args.output), indent=2, sort_keys=True))
     elif args.command == "trace-report":
         print(json.dumps(build_trace_report(args.output), indent=2, sort_keys=True))
+    elif args.command == "chaos-drill":
+        print(json.dumps(run_chaos_drill(args.output), indent=2, sort_keys=True))
     return 0
