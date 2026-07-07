@@ -14,6 +14,7 @@ from .gitops_release import build_gitops_plan
 from .governance import build_governance_bundle
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
+from .orchestration_scorecard import build_orchestration_scorecard
 from .policy_audit import audit_platform_policy
 from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
@@ -45,6 +46,7 @@ def demo(output: str | Path) -> dict:
         description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
         dashboard="training_orchestration_dashboard.html",
     )
+    orchestration_scorecard = build_orchestration_scorecard(root, project="Metaflow Airflow Training Platform")
     supply_chain = build_supply_chain_evidence(
         root,
         project="Metaflow Airflow Training Platform",
@@ -70,6 +72,7 @@ def demo(output: str | Path) -> dict:
         "cloud_migration": cloud_migration,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
+        "orchestration_scorecard": orchestration_scorecard,
         "supply_chain": supply_chain,
     }
 
@@ -131,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
     cloud_parser.add_argument("--output", default=".local")
     supply_chain_parser = sub.add_parser("supply-chain")
     supply_chain_parser.add_argument("--output", default=".local")
+    scorecard_parser = sub.add_parser("orchestration-scorecard")
+    scorecard_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -164,4 +169,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_cloud_migration_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "supply-chain":
         print(json.dumps(build_supply_chain_evidence(args.output, project="Metaflow Airflow Training Platform", artifact_name="training-orchestration-demo-artifacts", workflow="Training Orchestration CI", namespace="mlops-training"), indent=2, sort_keys=True))
+    elif args.command == "orchestration-scorecard":
+        print(json.dumps(build_orchestration_scorecard(args.output, project="Metaflow Airflow Training Platform"), indent=2, sort_keys=True))
     return 0

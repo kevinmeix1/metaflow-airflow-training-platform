@@ -16,6 +16,7 @@ from training_orchestration_platform.io import read_csv, read_json, read_jsonl, 
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.network_security import build_network_security_report
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
+from training_orchestration_platform.orchestration_scorecard import build_orchestration_scorecard
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.slo import build_slo_report
@@ -230,8 +231,22 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
+
+    def test_orchestration_scorecard_covers_advanced_controls(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scorecard = build_orchestration_scorecard(root, repo_root=repo, project="Metaflow Airflow Training Platform")
+            names = {check["name"] for check in scorecard["checks"] if check["passed"]}
+
+            self.assertTrue(scorecard["passed"])
+            self.assertGreaterEqual(scorecard["score"], 90.0)
+            self.assertIn("dynamic_task_mapping", names)
+            self.assertIn("kueue_admission", names)
+            self.assertIn("supply_chain_provenance", names)
+            self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
 
     def test_supply_chain_evidence_and_policy_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -268,6 +283,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "traceability_report.json",
                 "governance_evidence_bundle.json",
                 "slo_error_budget.json",
+                "orchestration_scorecard.json",
                 "supply_chain_evidence.json",
                 "cloud_migration_plan.json",
             ]:
@@ -304,6 +320,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(result["recovery"]["status"], "success")
             self.assertTrue((root / "reports" / "training_orchestration_dashboard.html").exists())
             self.assertTrue((root / "reports" / "index.html").exists())
+            self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
             self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())
 
     def test_backfill_is_idempotent_without_force(self) -> None:
