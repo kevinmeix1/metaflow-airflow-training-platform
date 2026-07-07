@@ -10,6 +10,7 @@ from training_orchestration_platform.cli import demo
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
 from training_orchestration_platform.gitops_release import build_gitops_plan
+from training_orchestration_platform.governance import build_governance_bundle
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.network_security import build_network_security_report
@@ -80,8 +81,8 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             passed = {check["name"] for check in report["checks"] if check["passed"]}
             self.assertIn("indexed_backfill", passed)
             self.assertIn("event_driven_scaling", passed)
+            self.assertIn("immutable_image_digest", passed)
             self.assertIn("no_latest_image_tags", report["failed_checks"])
-            self.assertIn("immutable_image_digest", report["failed_checks"])
 
     def test_trace_report_and_otel_collector_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -165,6 +166,25 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(plan["restore_sequence"][0]["asset"], "namespace and batch CRDs")
             self.assertTrue(any(item["asset"] == "backfill replay" for item in plan["restore_sequence"]))
             self.assertTrue((Path(tmp) / "reports" / "disaster_recovery_plan.json").exists())
+
+    def test_governance_evidence_bundle_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        governance = (repo / "kubernetes" / "governance-evidence.yaml").read_text(encoding="utf-8")
+
+        for expected in ["kind: ConfigMap", "kind: Job", "model-card", "risk-register", "reproducibility-manifest"]:
+            self.assertIn(expected, governance)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            bundle = build_governance_bundle(root)
+            data_card = read_json(root / "governance" / "data_card.json")
+            manifest = read_json(root / "governance" / "reproducibility_manifest.json")
+
+            self.assertEqual(result["governance_bundle"]["release"]["decision"], "approved_training_artifact")
+            self.assertEqual(bundle["release"]["model_name"], "daily-demand-forecaster")
+            self.assertEqual(data_card["latest_partition"], "2026-06-06")
+            self.assertTrue(any(item["exists"] and len(item["sha256"]) == 64 for item in manifest["artifact_hashes"]))
+            self.assertTrue((root / "reports" / "governance_evidence_bundle.json").exists())
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

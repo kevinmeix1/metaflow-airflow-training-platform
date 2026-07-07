@@ -91,6 +91,8 @@ For auditable environment promotion with Argo CD and Argo Rollouts, see [GitOps 
 
 For backup schedules, restore order, and RPO/RTO evidence, see [disaster recovery](docs/disaster-recovery.md).
 
+For model cards, partition data cards, risk controls, approval records, and reproducibility hashes, see [governance evidence](docs/governance-evidence.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

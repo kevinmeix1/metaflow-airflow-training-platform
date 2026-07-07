@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -36,6 +36,9 @@ gitops-plan:
 dr-plan:
 	PYTHONPATH=src python3 -m training_orchestration_platform dr-plan --output .local
 
+governance-bundle:
+	PYTHONPATH=src python3 -m training_orchestration_platform governance-bundle --output .local
+
 kubernetes-plan:
 	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
 
@@ -47,6 +50,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/network-security.yaml"
 	@echo "  kubectl apply -f kubernetes/chaos-experiments.yaml"
 	@echo "  kubectl apply -f kubernetes/disaster-recovery.yaml"
+	@echo "  kubectl apply -f kubernetes/governance-evidence.yaml"
 	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"
 
 test:
