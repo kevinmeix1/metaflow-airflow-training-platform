@@ -10,6 +10,7 @@ from training_orchestration_platform.data import generate_partition, validate_ro
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
+from training_orchestration_platform.policy_audit import audit_platform_policy
 
 
 class TrainingOrchestrationPlatformTest(unittest.TestCase):
@@ -61,6 +62,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["ScaledJob", "kafka", "lagThreshold", "limitToPartitionsWithLag", "demand-training-queue"]:
             self.assertIn(expected, autoscaling)
+
+    def test_admission_policies_and_policy_audit_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        admission = (repo / "kubernetes" / "admission-policies.yaml").read_text(encoding="utf-8")
+
+        for expected in ["ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding", "ImageValidatingPolicy", "slsa-provenance"]:
+            self.assertIn(expected, admission)
+        with tempfile.TemporaryDirectory() as tmp:
+            report = audit_platform_policy(repo, output_root=tmp)
+            passed = {check["name"] for check in report["checks"] if check["passed"]}
+            self.assertIn("indexed_backfill", passed)
+            self.assertIn("event_driven_scaling", passed)
+            self.assertIn("no_latest_image_tags", report["failed_checks"])
+            self.assertIn("immutable_image_digest", report["failed_checks"])
 
     def test_backfill_capacity_planner_packs_waves_within_limits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -77,6 +77,8 @@ For the Kubernetes/Airflow robustness layer, see [Kubernetes and Airflow robustn
 
 For the operator-facing backfill planner, see [advanced backfill control plane](docs/control-plane-depth.md).
 
+For the policy-as-code audit layer, see [security and governance](docs/security-governance.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.
