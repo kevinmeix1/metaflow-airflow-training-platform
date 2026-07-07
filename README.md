@@ -71,6 +71,8 @@ PYTHONPATH=src python3 -m training_orchestration_platform run --output .local --
 
 See [production-grade refinements](docs/production-grade-refinements.md) for the asset-aware Airflow DAG, partition manifests, SHA-256 input fingerprints, lineage, and backfill semantics.
 
+For the latest training mesh orchestration pass, see [advanced orchestration assessment](docs/advanced-orchestration-assessment.md).
+
 ## Airflow And Metaflow Split
 
 Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.

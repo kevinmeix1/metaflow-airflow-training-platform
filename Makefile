@@ -1,4 +1,4 @@
-.PHONY: demo run backfill dashboard test clean
+.PHONY: demo run backfill dashboard kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -11,6 +11,14 @@ backfill:
 
 dashboard:
 	PYTHONPATH=src python3 -m training_orchestration_platform dashboard --output .local
+
+kubernetes-plan:
+	@find kubernetes -name '*.yaml' -maxdepth 3 -print
+
+minikube-up:
+	@echo "Start Minikube and apply the training mesh workloads:"
+	@echo "  minikube start --cpus=4 --memory=8192"
+	@echo "  kubectl apply -f kubernetes/training-mesh-workloads.yaml"
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v

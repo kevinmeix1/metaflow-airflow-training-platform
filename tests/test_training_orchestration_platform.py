@@ -12,6 +12,19 @@ from training_orchestration_platform.orchestrator import backfill, run_log_path,
 
 
 class TrainingOrchestrationPlatformTest(unittest.TestCase):
+    def test_advanced_training_mesh_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        dag = repo / "airflow" / "dags" / "enterprise_backfill_training_mesh_dag.py"
+        workloads = repo / "kubernetes" / "training-mesh-workloads.yaml"
+
+        dag_text = dag.read_text(encoding="utf-8")
+        workload_text = workloads.read_text(encoding="utf-8")
+
+        for expected in ["KubernetesPodOperator", "task_group", "BranchPythonOperator", "Asset", "expand("]:
+            self.assertIn(expected, dag_text)
+        for expected in ["CronJob", "completionMode: Indexed", "parallelism: 4", "RoleBinding", "ConfigMap"]:
+            self.assertIn(expected, workload_text)
+
     def test_demo_runs_backfill_failure_recovery_and_dashboard(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -68,6 +81,16 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("daily_demand_model", assets)
             self.assertIn("metaflow_training_flow", lineage)
             self.assertIn("daily_demand_model", lineage["metaflow_training_flow"])
+
+    def test_partition_manifest_contains_content_fingerprint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_partition(root, "2026-06-08")
+            manifest = read_json(root / "data" / "manifests" / "ds=2026-06-08.json")
+
+            self.assertEqual(manifest["partition"], "2026-06-08")
+            self.assertEqual(len(manifest["content_sha256"]), 64)
+            self.assertEqual(manifest["idempotency_key"], "daily-demand:2026-06-08")
 
 
 if __name__ == "__main__":
