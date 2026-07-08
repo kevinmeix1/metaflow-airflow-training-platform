@@ -81,6 +81,8 @@ For the operator-facing backfill planner, see [advanced backfill control plane](
 
 For Airflow 3 queue, runtime, and failed-partition Deadline Alerts with bounded callbacks, see [Airflow deadline alerts](docs/airflow-deadline-alerts.md).
 
+For OpenCost partition cost, backfill budgets, GPU training spend, retry-storm cost, and PVC artifact allocation, see [cost observability and FinOps](docs/cost-observability.md).
+
 For the policy-as-code audit layer, see [security and governance](docs/security-governance.md).
 
 For OpenTelemetry-style runtime traces, see [observability and tracing](docs/observability-tracing.md).

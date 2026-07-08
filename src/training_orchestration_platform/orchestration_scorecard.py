@@ -58,6 +58,7 @@ def build_orchestration_scorecard(
         ("inference_gateway_extension", _present(content, "InferencePool", "endpointPickerRef") and _present(content, "InferenceObjective", "inference.networking.k8s.io/v1"), "Gateway API Inference Extension captures serving handoff after promotion"),
         ("semantic_telemetry_contract", _present(content, "semantic_telemetry_plan.json", "attributes/semantic_redaction") and _present(content, "metaflow.run_id", "openlineage.dataset.name"), "Training spans preserve Airflow, Kueue, Metaflow, MLflow, partition, and lineage attributes with row redaction"),
         ("airflow_deadline_alerts", _present(content, "deadline_alert_plan.json", "Deadline Alerts") and _present(content, "AIRFLOW__CALLBACKS__CALLBACK_EXECUTION_TIMEOUT"), "Airflow 3 Deadline Alerts cover queue, runtime, and failed partition recovery thresholds"),
+        ("opencost_finops", _present(content, "cost_observability_report.json", "OpenCost", "node_gpu_hourly_cost") and _present(content, "TrainingBackfillCostBudgetExceeded"), "OpenCost and Prometheus budget alerts attribute daily, backfill, distributed, recovery, GPU, and PVC artifact spend"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -87,6 +88,7 @@ def build_orchestration_scorecard(
             "Gateway API Inference Extension for serving handoff and endpoint picker fallback",
             "OpenTelemetry semantic conventions for portable service, Kubernetes, batch, and lineage attributes",
             "Airflow 3 Deadline Alerts as the replacement for legacy SLA callbacks",
+            "OpenCost exporter metrics for training partition, backfill wave, GPU, retry, and artifact storage cost allocation",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [

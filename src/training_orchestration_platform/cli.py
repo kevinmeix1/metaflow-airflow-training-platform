@@ -9,6 +9,7 @@ from .artifact_index import render_artifact_index
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
+from .cost_observability import build_cost_observability_report
 from .dashboard import render_dashboard
 from .deadline_alerts import build_deadline_alert_plan
 from .device_allocation import build_device_allocation_plan
@@ -62,6 +63,7 @@ def demo(output: str | Path) -> dict:
     inference_gateway = build_inference_gateway_plan(root)
     semantic_telemetry = build_semantic_telemetry_plan(root)
     deadline_alerts = build_deadline_alert_plan(root)
+    cost_observability = build_cost_observability_report(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -105,6 +107,7 @@ def demo(output: str | Path) -> dict:
         "inference_gateway": inference_gateway,
         "semantic_telemetry": semantic_telemetry,
         "deadline_alerts": deadline_alerts,
+        "cost_observability": cost_observability,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -190,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     semantic_parser.add_argument("--output", default=".local")
     deadline_parser = sub.add_parser("deadline-alerts-plan")
     deadline_parser.add_argument("--output", default=".local")
+    cost_parser = sub.add_parser("cost-observability")
+    cost_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -249,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_semantic_telemetry_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "deadline-alerts-plan":
         print(json.dumps(build_deadline_alert_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "cost-observability":
+        print(json.dumps(build_cost_observability_report(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

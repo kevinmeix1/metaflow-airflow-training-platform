@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencost-exporter
+  labels:
+    app.kubernetes.io/name: opencost
+    platform.mlops.dev/owner: platform-finops
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-prometheus-scrape
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: opencost-finops
+    platform.mlops.dev/component: cost-observability
+data:
+  prometheus.yml: |
+    scrape_configs:
+      - job_name: opencost
+        scrape_interval: 1m
+        scrape_timeout: 10s
+        metrics_path: /metrics
+        scheme: http
+        static_configs:
+          - targets:
+              - opencost.opencost-exporter:9003
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-cost-allocation-contract
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: opencost-finops
+    platform.mlops.dev/component: allocation-contract
+data:
+  required-labels: airflow-dag,airflow-task,metaflow-flow,partition-date,model-family,training-wave,cost-center
+  allocation-dimensions: namespace,airflow_dag,airflow_task,metaflow_flow,partition_date,label_cost_center,label_model_family,label_training_wave
+  cost-per-successful-partition-query: |
+    (
+      sum(container_cpu_allocation * on(node) group_left node_cpu_hourly_cost) by (namespace, label_training_wave, label_model_family) * 730
+      + sum(container_memory_allocation_bytes * on(node) group_left node_ram_hourly_cost) by (namespace, label_training_wave, label_model_family) * 730 / 1024 / 1024 / 1024
+    )
+    /
+    clamp_min(sum(increase(training_partition_success_total{namespace="mlops-training"}[30d])) by (namespace, label_training_wave, label_model_family), 1)
+  gpu-training-cost-query: |
+    sum(node_gpu_hourly_cost) by (namespace, node, label_training_wave, label_model_family) * 730
+  artifact-pvc-cost-query: |
+    sum(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="mlops-training"}) by (namespace, persistentvolumeclaim) / 1024 / 1024 / 1024
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-cost-observability
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: opencost-finops
+    platform.mlops.dev/component: budget-alerts
+spec:
+  groups:
+    - name: training.finops.opencost
+      rules:
+        - alert: TrainingBackfillCostBudgetExceeded
+          expr: |
+            sum(container_cpu_allocation{label_training_wave="backfill"} * on(node) group_left node_cpu_hourly_cost) by (namespace) * 730 > 880
+          for: 30m
+          labels:
+            severity: warning
+            team: ml-training
+          annotations:
+            summary: Historical backfill cost is projected above the planned budget.
+            runbook_url: docs/cost-observability.md
+        - alert: TrainingIdleGpuCostWaste
+          expr: |
+            sum(node_gpu_hourly_cost) by (namespace) > 0
+            unless sum(DCGM_FI_DEV_GPU_UTIL{namespace="mlops-training"}) by (namespace) > 0
+          for: 15m
+          labels:
+            severity: warning
+            team: ml-training
+          annotations:
+            summary: GPU training spend is present without matching accelerator utilization.
+            runbook_url: docs/cost-observability.md
+        - alert: TrainingRetryStormCost
+          expr: |
+            sum(increase(training_partition_retry_total{namespace="mlops-training"}[1h])) by (namespace, label_model_family) > 5
+          for: 10m
+          labels:
+            severity: page
+            team: ml-training
+          annotations:
+            summary: Repeated partition retries may be creating a cost and freshness incident.
+            runbook_url: docs/cost-observability.md
+        - alert: TrainingCostAllocationLabelMissing
+          expr: |
+            count by (namespace) (
+              kube_pod_info{namespace="mlops-training"}
+              unless on(namespace, pod) kube_pod_labels{namespace="mlops-training", label_cost_center!=""}
+            ) > 0
+          for: 10m
+          labels:
+            severity: page
+            team: platform-finops
+          annotations:
+            summary: Training workload is missing cost allocation labels.
+            runbook_url: docs/cost-observability.md
