@@ -30,6 +30,7 @@ from .orchestration_scorecard import build_orchestration_scorecard
 from .oci_artifact_volume import build_oci_artifact_volume_plan
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
+from .pod_resource_envelopes import build_pod_resource_envelope_plan
 from .provisioning_admission import build_provisioning_admission_plan
 from .queue_simulator import build_queue_simulation
 from .release_admission import build_release_admission_decision
@@ -77,6 +78,7 @@ def demo(output: str | Path) -> dict:
     multikueue_dispatch = build_multikueue_dispatch_plan(root)
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
     event_driven_assets = build_event_driven_assets_plan(root)
+    pod_resource_envelopes = build_pod_resource_envelope_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -128,6 +130,7 @@ def demo(output: str | Path) -> dict:
         "multikueue_dispatch": multikueue_dispatch,
         "dag_bundle_versioning": dag_bundle_versioning,
         "event_driven_assets": event_driven_assets,
+        "pod_resource_envelopes": pod_resource_envelopes,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -228,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
     dag_bundle_parser.add_argument("--output", default=".local")
     event_assets_parser = sub.add_parser("event-driven-assets")
     event_assets_parser.add_argument("--output", default=".local")
+    pod_resource_parser = sub.add_parser("pod-resource-envelopes")
+    pod_resource_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -303,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_dag_bundle_versioning_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "event-driven-assets":
         print(json.dumps(build_event_driven_assets_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "pod-resource-envelopes":
+        print(json.dumps(build_pod_resource_envelope_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

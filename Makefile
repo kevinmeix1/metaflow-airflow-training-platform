@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan event-driven-assets tenancy-report identity-report performance-budget queue-simulation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan event-driven-assets pod-resource-envelopes tenancy-report identity-report performance-budget queue-simulation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -93,6 +93,9 @@ dag-bundle-plan:
 event-driven-assets:
 	PYTHONPATH=src python3 -m training_orchestration_platform event-driven-assets --output .local
 
+pod-resource-envelopes:
+	PYTHONPATH=src python3 -m training_orchestration_platform pod-resource-envelopes --output .local
+
 tenancy-report:
 	PYTHONPATH=src python3 -m training_orchestration_platform tenancy-report --output .local
 
@@ -134,6 +137,7 @@ ci-verify:
 	test -f .local/reports/multikueue_dispatch_plan.json
 	test -f .local/reports/dag_bundle_versioning_plan.json
 	test -f .local/reports/event_driven_assets_plan.json
+	test -f .local/reports/pod_resource_envelope_plan.json
 	test -f .local/reports/tenancy_fairness_report.json
 	test -f .local/reports/identity_access_report.json
 	test -f .local/reports/performance_budget.json
@@ -160,6 +164,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/multikueue_dispatch_plan.json >/dev/null
 	python3 -m json.tool .local/reports/dag_bundle_versioning_plan.json >/dev/null
 	python3 -m json.tool .local/reports/event_driven_assets_plan.json >/dev/null
+	python3 -m json.tool .local/reports/pod_resource_envelope_plan.json >/dev/null
 	python3 -m json.tool .local/reports/tenancy_fairness_report.json >/dev/null
 	python3 -m json.tool .local/reports/identity_access_report.json >/dev/null
 	python3 -m json.tool .local/reports/performance_budget.json >/dev/null
@@ -191,6 +196,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/provisioning-admission-checks.yaml"
 	@echo "  kubectl apply -f kubernetes/multikueue-dispatch.yaml"
 	@echo "  kubectl apply -f kubernetes/oci-artifact-volumes.yaml"
+	@echo "  kubectl apply -f kubernetes/pod-resource-envelopes.yaml"
 	@echo "  kubectl apply -f kubernetes/inference-gateway-routing.yaml"
 	@echo "  kubectl apply -f kubernetes/multitenancy-fairness.yaml"
 	@echo "  kubectl apply -f kubernetes/workload-identity.yaml"

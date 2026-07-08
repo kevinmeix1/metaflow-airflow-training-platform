@@ -38,6 +38,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("OCI Artifact Volumes", "oci_artifact_volume_plan.json", "Kubernetes image-volume training artifacts, digest-pinned bundles, read-only mounts, warmups, and fallback controls."),
         ("DAG Bundle Versioning", "dag_bundle_versioning_plan.json", "Airflow 3 GitDagBundle versioning for partition replay, scheduler-managed backfills, and Metaflow lineage."),
         ("Event-Driven Assets", "event_driven_assets_plan.json", "Airflow 3 AssetWatchers for raw sales arrival, partition manifests, failed replay, and candidate model events."),
+        ("Pod Resource Envelopes", "pod_resource_envelope_plan.json", "Kubernetes pod-level resources, scheduling gates, manifest readiness, artifact-volume readiness, and scheduler-churn observability."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),

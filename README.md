@@ -121,6 +121,8 @@ For Kubernetes Indexed Jobs, per-index retry budgets, `successPolicy`, `podFailu
 
 For Kueue ProvisioningRequest admission checks, physical autoscaler capacity guarantees, retry backoff, and fallback queueing, see [provisioning admission](docs/provisioning-admission.md).
 
+For Kubernetes pod-level resource envelopes, stable scheduling gates, manifest/artifact readiness checks, and scheduler-churn metrics, see [pod resource envelopes](docs/pod-resource-envelopes.md).
+
 For Kueue MultiKueue manager-to-worker training dispatch, cross-cluster quota alignment, worker status sync, and failover, see [MultiKueue dispatch](docs/multikueue-dispatch.md).
 
 For Kubernetes image-volume OCI artifact mounts, digest-pinned training inputs, read-only Metaflow bundles, warmup jobs, and PVC/S3 fallback semantics, see [OCI artifact volumes](docs/oci-artifact-volumes.md).

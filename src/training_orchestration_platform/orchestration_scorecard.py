@@ -66,6 +66,7 @@ def build_orchestration_scorecard(
         ("oci_image_volume_artifacts", _present(content, "oci_artifact_volume_plan.json", "volumes[*].image", "oci-artifact-volumes") and _present(content, "pullPolicy: IfNotPresent", "training-artifact-volume-smoke"), "Kubernetes image volumes mount digest-pinned training artifacts before Airflow expands Metaflow fanout"),
         ("airflow_dag_bundle_versioning", _present(content, "dag_bundle_versioning_plan.json", "GitDagBundle", "dag_bundle_config_list") and _present(content, "rerun_with_latest_version=False", "rerun_with_latest_version = False"), "Airflow 3 GitDagBundle versioning preserves partition replay code across backfills, mapped task reruns, and Metaflow lineage"),
         ("airflow_event_driven_assets", _present(content, "event_driven_assets_plan.json", "AssetWatcher", "BaseEventTrigger") and _present(content, "shared_stream_key", "AssetAlias"), "Airflow 3 event-driven assets trigger training waves from raw data and manifest readiness with replay overrides"),
+        ("pod_resource_envelopes", _present(content, "pod_resource_envelope_plan.json", "PodLevelResources", "schedulingGates") and _present(content, "scheduler_pending_pods", "PodSchedulingReadiness"), "Kubernetes pod-level resource envelopes and scheduling gates avoid training backfill scheduler churn before prerequisites are ready"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -103,6 +104,7 @@ def build_orchestration_scorecard(
             "Kubernetes v1.36 image volumes for read-only OCI artifact mounts with startup failure guardrails and fallback storage paths",
             "Airflow 3 DAG Bundles and DAG versioning for reproducible training backfills and failed-partition replay",
             "Airflow 3 AssetWatchers, BaseEventTrigger compatibility, shared-stream polling, and conditional training asset expressions",
+            "Kubernetes PodLevelResources and Pod Scheduling Readiness gates for scheduler-efficient training backfills",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [
