@@ -9,6 +9,7 @@ from .artifact_index import render_artifact_index
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
+from .cohort_fair_sharing import build_cohort_fair_sharing_plan
 from .cost_observability import build_cost_observability_report
 from .dag_bundle_versioning import build_dag_bundle_versioning_plan
 from .dashboard import render_dashboard
@@ -79,6 +80,7 @@ def demo(output: str | Path) -> dict:
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
     event_driven_assets = build_event_driven_assets_plan(root)
     pod_resource_envelopes = build_pod_resource_envelope_plan(root)
+    cohort_fair_sharing = build_cohort_fair_sharing_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -131,6 +133,7 @@ def demo(output: str | Path) -> dict:
         "dag_bundle_versioning": dag_bundle_versioning,
         "event_driven_assets": event_driven_assets,
         "pod_resource_envelopes": pod_resource_envelopes,
+        "cohort_fair_sharing": cohort_fair_sharing,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -233,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
     event_assets_parser.add_argument("--output", default=".local")
     pod_resource_parser = sub.add_parser("pod-resource-envelopes")
     pod_resource_parser.add_argument("--output", default=".local")
+    cohort_parser = sub.add_parser("cohort-fair-sharing")
+    cohort_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -310,6 +315,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_event_driven_assets_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "pod-resource-envelopes":
         print(json.dumps(build_pod_resource_envelope_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "cohort-fair-sharing":
+        print(json.dumps(build_cohort_fair_sharing_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

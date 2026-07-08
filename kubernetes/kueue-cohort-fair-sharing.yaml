@@ -1,0 +1,117 @@
+apiVersion: config.kueue.x-k8s.io/v1beta2
+kind: Configuration
+metadata:
+  name: training-kueue-fair-sharing
+fairSharing:
+  preemptionStrategies:
+    - LessThanOrEqualToFinalShare
+    - LessThanInitialShare
+featureGates:
+  AdmissionFairSharing: true
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: ml-training-cohort
+spec:
+  fairSharing:
+    weight: 1
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: demand-training-tenant-queue
+spec:
+  cohort: ml-training-cohort
+  fairSharing:
+    weight: 4
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: Any
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 30
+              borrowingLimit: 12
+              lendingLimit: 3
+            - name: memory
+              nominalQuota: 120Gi
+              borrowingLimit: 40Gi
+              lendingLimit: 12Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: training-quality-tenant-queue
+spec:
+  cohort: ml-training-cohort
+  fairSharing:
+    weight: 2
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: LowerPriority
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 14
+              borrowingLimit: 8
+              lendingLimit: 4
+            - name: memory
+              nominalQuota: 56Gi
+              borrowingLimit: 24Gi
+              lendingLimit: 16Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: feature-exploration-tenant-queue
+spec:
+  cohort: ml-training-cohort
+  fairSharing:
+    weight: 1
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: Never
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 12
+              borrowingLimit: 4
+              lendingLimit: 8
+            - name: memory
+              nominalQuota: 48Gi
+              borrowingLimit: 12Gi
+              lendingLimit: 28Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: daily-backfill
+  namespace: ml-training-prod
+spec:
+  clusterQueue: demand-training-tenant-queue
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: contract-checks
+  namespace: ml-training-quality
+spec:
+  clusterQueue: training-quality-tenant-queue
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: hpo-sweeps
+  namespace: ml-training-exploration
+spec:
+  clusterQueue: feature-exploration-tenant-queue

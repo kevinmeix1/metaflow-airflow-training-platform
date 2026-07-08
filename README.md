@@ -123,6 +123,8 @@ For Kueue ProvisioningRequest admission checks, physical autoscaler capacity gua
 
 For Kubernetes pod-level resource envelopes, stable scheduling gates, manifest/artifact readiness checks, and scheduler-churn metrics, see [pod resource envelopes](docs/pod-resource-envelopes.md).
 
+For Kueue Fair Sharing, Admission Fair Sharing, training queue weights, borrowing/lending limits, and preemption guardrails, see [Kueue cohort fair sharing](docs/kueue-cohort-fair-sharing.md).
+
 For Kueue MultiKueue manager-to-worker training dispatch, cross-cluster quota alignment, worker status sync, and failover, see [MultiKueue dispatch](docs/multikueue-dispatch.md).
 
 For Kubernetes image-volume OCI artifact mounts, digest-pinned training inputs, read-only Metaflow bundles, warmup jobs, and PVC/S3 fallback semantics, see [OCI artifact volumes](docs/oci-artifact-volumes.md).
