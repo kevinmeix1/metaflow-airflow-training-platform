@@ -8,7 +8,7 @@ from .io import write_json
 def _read_all(repo_root: Path) -> tuple[str, list[Path]]:
     files = []
     chunks = []
-    for folder in ["airflow", "kubernetes", "gitops", "docs", ".github"]:
+    for folder in ["airflow", "kubernetes", "gitops", "docs", "src", ".github"]:
         base = repo_root / folder
         if not base.exists():
             continue
@@ -56,6 +56,7 @@ def build_orchestration_scorecard(
         ("kueue_admission", _present(content, "ClusterQueue", "kueue.x-k8s.io"), "Kueue queues gate batch and release work"),
         ("kuberay_elastic_jobs", _present(content, "RayJob", "RayCluster") and _present(content, "enableInTreeAutoscaling", "elastic-job"), "KubeRay workloads scale distributed training waves inside Kueue admission"),
         ("inference_gateway_extension", _present(content, "InferencePool", "endpointPickerRef") and _present(content, "InferenceObjective", "inference.networking.k8s.io/v1"), "Gateway API Inference Extension captures serving handoff after promotion"),
+        ("semantic_telemetry_contract", _present(content, "semantic_telemetry_plan.json", "attributes/semantic_redaction") and _present(content, "metaflow.run_id", "openlineage.dataset.name"), "Training spans preserve Airflow, Kueue, Metaflow, MLflow, partition, and lineage attributes with row redaction"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -83,6 +84,7 @@ def build_orchestration_scorecard(
             "Kueue, KEDA, and HPA for Kubernetes admission control and adaptive capacity",
             "KubeRay with Kueue for elastic distributed training and recovery waves",
             "Gateway API Inference Extension for serving handoff and endpoint picker fallback",
+            "OpenTelemetry semantic conventions for portable service, Kubernetes, batch, and lineage attributes",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [

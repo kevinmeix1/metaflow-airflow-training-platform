@@ -28,11 +28,82 @@ def span(trace_id: str, name: str, *, parent: str | None, service: str, duration
 def build_trace_report(root: str | Path) -> dict:
     root = Path(root)
     trace_id = _hex("demand-training-backfill-trace", 32)
-    airflow = span(trace_id, "airflow.backfill_wave", parent=None, service="airflow", duration_ms=120.0, attributes={"pool": "metaflow_training_pool"})
-    kueue = span(trace_id, "kueue.admit_workload", parent=airflow["span_id"], service="kueue", duration_ms=35.0, attributes={"queue": "demand-training-queue"})
-    metaflow = span(trace_id, "metaflow.partition_train", parent=kueue["span_id"], service="metaflow", duration_ms=640.0, attributes={"flow": "DemandTrainingFlow"})
-    mlflow = span(trace_id, "mlflow.log_artifacts", parent=metaflow["span_id"], service="mlflow", duration_ms=55.0, attributes={"artifact": "model"})
-    lineage = span(trace_id, "openlineage.publish", parent=mlflow["span_id"], service="openlineage", duration_ms=22.0, attributes={"asset": "daily_demand_model"})
+    airflow = span(
+        trace_id,
+        "airflow.backfill_wave",
+        parent=None,
+        service="airflow",
+        duration_ms=120.0,
+        attributes={
+            "service.name": "airflow-scheduler",
+            "airflow.dag_id": "enterprise_backfill_training_mesh",
+            "airflow.run_id": "scheduled__2026-06-07",
+            "airflow.pool.name": "metaflow_training_pool",
+            "backfill.wave_index": 2,
+            "deployment.environment.name": "local-demo",
+        },
+    )
+    kueue = span(
+        trace_id,
+        "kueue.admit_workload",
+        parent=airflow["span_id"],
+        service="kueue",
+        duration_ms=35.0,
+        attributes={
+            "service.name": "kueue",
+            "kueue.queue.name": "demand-training-queue",
+            "kueue.workload.name": "demand-backfill-2026-06-06",
+            "queue.wait_ms": 35.0,
+            "k8s.namespace.name": "ml-training",
+            "k8s.job.name": "demand-partition-2026-06-06",
+        },
+    )
+    metaflow = span(
+        trace_id,
+        "metaflow.partition_train",
+        parent=kueue["span_id"],
+        service="metaflow",
+        duration_ms=640.0,
+        attributes={
+            "service.name": "metaflow",
+            "metaflow.flow_name": "DemandTrainingFlow",
+            "metaflow.run_id": "demand-2026-06-06-recovery",
+            "metaflow.step_name": "train",
+            "partition.date": "2026-06-06",
+            "partition.status": "recovered",
+            "partition.retry_count": 1,
+            "training.duration_ms": 640.0,
+            "k8s.pod.name": "demand-partition-2026-06-06-0",
+        },
+    )
+    mlflow = span(
+        trace_id,
+        "mlflow.log_artifacts",
+        parent=metaflow["span_id"],
+        service="mlflow",
+        duration_ms=55.0,
+        attributes={
+            "service.name": "mlflow",
+            "mlflow.run_id": "mlflow-demand-20260606",
+            "ml.model.name": "daily-demand-forecaster",
+            "ml.model.version": "2026.06.06",
+            "artifact.name": "model",
+            "artifact.bytes": 184320,
+        },
+    )
+    lineage = span(
+        trace_id,
+        "openlineage.publish",
+        parent=mlflow["span_id"],
+        service="openlineage",
+        duration_ms=22.0,
+        attributes={
+            "service.name": "openlineage",
+            "openlineage.run_id": "ol-demand-20260606",
+            "openlineage.dataset.name": "daily_demand_model",
+            "partition.date": "2026-06-06",
+        },
+    )
     spans = [airflow, kueue, metaflow, mlflow, lineage]
     report = {
         "trace_id": trace_id,
