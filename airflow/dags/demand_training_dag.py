@@ -37,6 +37,7 @@ DEMAND_MODEL = Asset("mlflow://models/daily-demand-forecaster")
     max_active_runs=2,
     default_args=DEFAULT_ARGS,
     tags=["metaflow", "training", "backfill", "asset-aware"],
+    rerun_with_latest_version=False,
 )
 def demand_training_orchestration():
     @task

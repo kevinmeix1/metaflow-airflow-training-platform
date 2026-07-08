@@ -67,6 +67,7 @@ if AIRFLOW_AVAILABLE:
             "retry_delay": timedelta(minutes=5),
         },
         tags=["airflow", "metaflow", "dynamic-mapping", "backfill", "lineage"],
+        rerun_with_latest_version=False,
     )
     def enterprise_backfill_training_mesh():
         start = EmptyOperator(task_id="start_training_mesh")

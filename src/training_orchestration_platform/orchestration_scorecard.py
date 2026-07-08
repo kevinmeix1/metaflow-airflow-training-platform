@@ -64,6 +64,7 @@ def build_orchestration_scorecard(
         ("provisioning_admission_checks", _present(content, "provisioning_admission_plan.json", "ProvisioningRequestConfig", "kueue.x-k8s.io/provisioning-request") and _present(content, "admissionChecksStrategy", "check-capacity.autoscaling.x-k8s.io"), "Kueue ProvisioningRequest admission confirms physical autoscaler capacity after quota reservation"),
         ("multikueue_dispatch", _present(content, "multikueue_dispatch_plan.json", "MultiKueueConfig", "MultiKueueCluster") and _present(content, "kueue.x-k8s.io/multikueue", "status.clusterName"), "Kueue MultiKueue dispatch covers manager quota alignment, worker clusters, status sync, and cross-cluster training failover"),
         ("oci_image_volume_artifacts", _present(content, "oci_artifact_volume_plan.json", "volumes[*].image", "oci-artifact-volumes") and _present(content, "pullPolicy: IfNotPresent", "training-artifact-volume-smoke"), "Kubernetes image volumes mount digest-pinned training artifacts before Airflow expands Metaflow fanout"),
+        ("airflow_dag_bundle_versioning", _present(content, "dag_bundle_versioning_plan.json", "GitDagBundle", "dag_bundle_config_list") and _present(content, "rerun_with_latest_version=False", "rerun_with_latest_version = False"), "Airflow 3 GitDagBundle versioning preserves partition replay code across backfills, mapped task reruns, and Metaflow lineage"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -99,6 +100,7 @@ def build_orchestration_scorecard(
             "Kueue ProvisioningRequest AdmissionChecks for physical capacity guarantees after ClusterQueue quota reservation",
             "Kueue MultiKueue for manager-to-worker cluster dispatch, worker status sync, and quota alignment across training fleets",
             "Kubernetes v1.36 image volumes for read-only OCI artifact mounts with startup failure guardrails and fallback storage paths",
+            "Airflow 3 DAG Bundles and DAG versioning for reproducible training backfills and failed-partition replay",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [
