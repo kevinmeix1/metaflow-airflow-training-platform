@@ -153,6 +153,8 @@ For Kueue ResourceFlavor fallback, `TryNextFlavor` behavior, and training spot/o
 
 For Kueue `VisibilityOnDemand`, pending workload API queries, backfill queue triage, and admission-wait alerts, see [Kueue pending workload visibility](docs/kueue-pending-workload-visibility.md).
 
+For Kubernetes v1.36 Workload/PodGroup readiness across partition backfills, HPO sweeps, failed-partition replay, topology constraints, DRA sharing, and workload-aware preemption, see [workload-aware scheduling](docs/workload-aware-scheduling.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).

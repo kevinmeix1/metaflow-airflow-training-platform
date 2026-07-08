@@ -50,6 +50,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Pending Workload Visibility", "pending_workload_visibility_plan.json", "Kueue VisibilityOnDemand, raw pendingworkloads API paths, backfill queue triage, and admission-wait alerts."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
+        ("Workload-Aware Scheduling", "workload_aware_scheduling_plan.json", "Kubernetes v1.36 Workload/PodGroup readiness for partition backfills, HPO sweeps, failed-partition replay, topology constraints, DRA sharing, and workload-aware preemption."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),
         ("Tenant Fairness", "tenancy_fairness_report.json", "Training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, and chargeback labels."),
         ("Workload Identity", "identity_access_report.json", "Keyless identities for Airflow schedulers, Metaflow partition workers, and MLflow registration."),

@@ -1,0 +1,116 @@
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: metaflow-backfill-pg
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: demand-metaflow-backfill
+    platform.mlops.dev/control: workload-aware-scheduling
+spec:
+  priorityClassName: training-backfill-critical
+  priority: 1000
+  disruptionMode: PodGroup
+  schedulingPolicy:
+    gang:
+      minCount: 8
+  schedulingConstraints:
+    topology:
+      - key: topology.kubernetes.io/rack
+  resourceClaims:
+    - name: shared-training-gpu-claim
+      resourceClaimTemplateName: training-backfill-gpu-claim-template
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: training-backfill-gpu-claim-template
+  namespace: mlops-training
+spec:
+  spec:
+    devices:
+      requests:
+        - name: training-gpu
+          deviceClassName: gpu-a100-mig
+          allocationMode: All
+          count: 1
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: metaflow-backfill-indexed-job
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: demand-metaflow-backfill
+    kueue.x-k8s.io/queue-name: training-backfill
+    platform.mlops.dev/workload-aware-scheduling: "candidate"
+  annotations:
+    scheduling.k8s.io/feature-gate: WorkloadWithJob
+    platform.mlops.dev/podgroup: metaflow-backfill-pg
+spec:
+  completionMode: Indexed
+  parallelism: 8
+  completions: 8
+  backoffLimitPerIndex: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: demand-metaflow-backfill
+    spec:
+      restartPolicy: Never
+      priorityClassName: training-backfill-critical
+      resourceClaims:
+        - name: shared-training-gpu-claim
+          resourceClaimTemplateName: training-backfill-gpu-claim-template
+      containers:
+        - name: trainer
+          image: ghcr.io/kevinmeix1/demand-trainer@sha256:demo
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JOB_COMPLETION_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: WORKLOAD_AWARE_SCHEDULING
+              value: "alpha-readiness"
+          resources:
+            requests:
+              cpu: "3"
+              memory: 8Gi
+            limits:
+              cpu: "6"
+              memory: 16Gi
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: hpo-sweep-pg
+  namespace: mlops-training
+spec:
+  priorityClassName: training-experiment-critical
+  priority: 700
+  disruptionMode: PodGroup
+  schedulingPolicy:
+    gang:
+      minCount: 4
+  schedulingConstraints:
+    topology:
+      - key: topology.kubernetes.io/zone
+  resourceClaims:
+    - name: hpo-sweep-shared-gpu-claim
+      resourceClaimTemplateName: training-backfill-gpu-claim-template
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: failed-partition-replay-pg
+  namespace: mlops-training
+spec:
+  priorityClassName: training-recovery-critical
+  priority: 1100
+  disruptionMode: PodGroup
+  schedulingPolicy:
+    gang:
+      minCount: 3
+  schedulingConstraints:
+    topology:
+      - key: kubernetes.io/hostname

@@ -50,6 +50,7 @@ from .supply_chain import build_supply_chain_evidence
 from .tenancy import build_tenancy_report
 from .topology_placement import build_topology_placement_plan
 from .traceability import build_trace_report
+from .workload_aware_scheduling import build_workload_aware_scheduling_plan
 
 
 def demo(output: str | Path) -> dict:
@@ -101,6 +102,7 @@ def demo(output: str | Path) -> dict:
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
     queue_simulation = build_queue_simulation(root)
+    workload_aware_scheduling = build_workload_aware_scheduling_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
@@ -162,6 +164,7 @@ def demo(output: str | Path) -> dict:
         "identity_access": identity_access,
         "performance_budget": performance_budget,
         "queue_simulation": queue_simulation,
+        "workload_aware_scheduling": workload_aware_scheduling,
         "oci_artifact_volume": oci_artifact_volume,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
@@ -286,6 +289,8 @@ def main(argv: list[str] | None = None) -> int:
     performance_parser.add_argument("--output", default=".local")
     queue_parser = sub.add_parser("queue-simulation")
     queue_parser.add_argument("--output", default=".local")
+    workload_parser = sub.add_parser("workload-aware-scheduling")
+    workload_parser.add_argument("--output", default=".local")
     artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
     artifact_volume_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
@@ -381,6 +386,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
     elif args.command == "queue-simulation":
         print(json.dumps(build_queue_simulation(args.output), indent=2, sort_keys=True))
+    elif args.command == "workload-aware-scheduling":
+        print(json.dumps(build_workload_aware_scheduling_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "oci-artifact-volumes":
         print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":

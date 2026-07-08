@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -135,6 +135,9 @@ performance-budget:
 queue-simulation:
 	PYTHONPATH=src python3 -m training_orchestration_platform queue-simulation --output .local
 
+workload-aware-scheduling:
+	PYTHONPATH=src python3 -m training_orchestration_platform workload-aware-scheduling --output .local
+
 oci-artifact-volumes:
 	PYTHONPATH=src python3 -m training_orchestration_platform oci-artifact-volumes --output .local
 
@@ -178,6 +181,7 @@ ci-verify:
 	test -f .local/reports/identity_access_report.json
 	test -f .local/reports/performance_budget.json
 	test -f .local/reports/queue_simulation.json
+	test -f .local/reports/workload_aware_scheduling_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
 	test -f .local/reports/release_admission_decision.json
 	test -f .local/supply-chain/subject.checksums.txt
@@ -214,6 +218,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/identity_access_report.json >/dev/null
 	python3 -m json.tool .local/reports/performance_budget.json >/dev/null
 	python3 -m json.tool .local/reports/queue_simulation.json >/dev/null
+	python3 -m json.tool .local/reports/workload_aware_scheduling_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
 
