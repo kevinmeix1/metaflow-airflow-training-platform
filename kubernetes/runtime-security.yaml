@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: training-telemetry-reader
+  namespace: mlops-training
+  labels:
+    platform.mlops.dev/control: runtime-security
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: training-kubelet-fine-grained-reader
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes/metrics
+      - nodes/stats
+      - nodes/pods
+      - nodes/log
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: training-kubelet-fine-grained-reader
+subjects:
+  - kind: ServiceAccount
+    name: training-telemetry-reader
+    namespace: mlops-training
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: training-kubelet-fine-grained-reader
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: metaflow-training-userns-smoke
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: metaflow-partition-worker
+    platform.mlops.dev/control: runtime-security
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: metaflow-partition-worker
+    spec:
+      hostUsers: false
+      serviceAccountName: training-telemetry-reader
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: partition-worker
+          image: ghcr.io/kevinmeix1/demand-trainer@sha256:demo
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "training_orchestration_platform.runtime_smoke"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: deny-training-monitoring-nodes-proxy
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterroles"]
+  validations:
+    - expression: "!has(object.rules) || object.rules.all(rule, !has(rule.resources) || !('nodes/proxy' in rule.resources))"
+      message: "Use fine-grained kubelet subresources such as nodes/metrics, nodes/stats, nodes/log, or nodes/pods instead of nodes/proxy."
