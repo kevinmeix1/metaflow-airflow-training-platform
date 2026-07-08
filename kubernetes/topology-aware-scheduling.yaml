@@ -1,0 +1,128 @@
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Topology
+metadata:
+  name: training-accelerator-topology
+spec:
+  levels:
+    - nodeLabel: cloud.provider.com/topology-block
+    - nodeLabel: cloud.provider.com/topology-rack
+    - nodeLabel: kubernetes.io/hostname
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: gpu-a100-training-tas
+spec:
+  nodeLabels:
+    accelerator: nvidia-a100
+  topologyName: training-accelerator-topology
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: training-topology-provisioning-check
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: training-topology-aware-queue
+spec:
+  namespaceSelector: {}
+  admissionChecks:
+    - training-topology-provisioning-check
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: gpu-a100-training-tas
+          resources:
+            - name: nvidia.com/gpu
+              nominalQuota: 16
+            - name: cpu
+              nominalQuota: 96
+            - name: memory
+              nominalQuota: 384Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demand-distributed-backfill-tas
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/component: topology-aware-training
+  annotations:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    kueue.x-k8s.io/podset-required-topology: cloud.provider.com/topology-rack
+    kueue.x-k8s.io/podset-slice-required-topology: cloud.provider.com/topology-rack
+spec:
+  completions: 16
+  parallelism: 16
+  completionMode: Indexed
+  template:
+    spec:
+      serviceAccountName: metaflow-partition-worker
+      restartPolicy: Never
+      containers:
+        - name: train
+          image: ghcr.io/kevinmeix1/demand-training@sha256:replace-with-digest
+          args: ["python", "-m", "training_orchestration_platform", "run", "--output", "/workspace", "--date", "2026-06-07"]
+          resources:
+            requests:
+              cpu: "4"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler-ha
+  namespace: mlops-training
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: airflow-scheduler
+      containers:
+        - name: scheduler
+          image: apache/airflow@sha256:replace-with-approved-digest
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-topology-aware-scheduling
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.topology.scheduling
+      rules:
+        - alert: TrainingTopologyAssignmentDelayed
+          expr: kueue_pending_workloads{cluster_queue="training-topology-aware-queue"} > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Distributed backfill is waiting for a feasible rack-level topology assignment."

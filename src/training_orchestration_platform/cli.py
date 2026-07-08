@@ -26,6 +26,7 @@ from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
 from .supply_chain import build_supply_chain_evidence
 from .tenancy import build_tenancy_report
+from .topology_placement import build_topology_placement_plan
 from .traceability import build_trace_report
 
 
@@ -52,6 +53,7 @@ def demo(output: str | Path) -> dict:
         primary_workload="partitioned training backfills and feature-heavy model families",
     )
     device_allocation = build_device_allocation_plan(root)
+    topology_placement = build_topology_placement_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -90,6 +92,7 @@ def demo(output: str | Path) -> dict:
         "cloud_migration": cloud_migration,
         "accelerator_capacity": accelerator_capacity,
         "device_allocation": device_allocation,
+        "topology_placement": topology_placement,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -165,6 +168,8 @@ def main(argv: list[str] | None = None) -> int:
     accelerator_parser.add_argument("--output", default=".local")
     device_parser = sub.add_parser("device-plan")
     device_parser.add_argument("--output", default=".local")
+    topology_parser = sub.add_parser("topology-plan")
+    topology_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -214,6 +219,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
     elif args.command == "device-plan":
         print(json.dumps(build_device_allocation_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "topology-plan":
+        print(json.dumps(build_topology_placement_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

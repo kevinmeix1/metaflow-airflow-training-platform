@@ -28,6 +28,7 @@ from training_orchestration_platform.resource_optimizer import build_resource_op
 from training_orchestration_platform.slo import build_slo_report
 from training_orchestration_platform.supply_chain import build_supply_chain_evidence
 from training_orchestration_platform.tenancy import build_tenancy_report
+from training_orchestration_platform.topology_placement import build_topology_placement_plan
 from training_orchestration_platform.traceability import build_trace_report
 
 
@@ -301,7 +302,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -335,6 +336,23 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 self.assertIn(expected, manifest)
             for expected in ["Dynamic Resource Allocation", "Airflow", "time-slicing", "MIG", "ResourceClaim"]:
                 self.assertIn(expected, docs)
+
+    def test_topology_placement_plan_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "topology-aware-scheduling.yaml").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "topology-aware-scheduling.md").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_topology_placement_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "enable_topology_aware_backfills")
+            self.assertTrue((root / "reports" / "topology_placement_plan.json").exists())
+            self.assertTrue(any(workload["pod_count"] == 16 for workload in report["workloads"]))
+        for expected in ["kind: Topology", "topologyName", "kueue.x-k8s.io/podset-required-topology", "topologySpreadConstraints", "TrainingTopologyAssignmentDelayed"]:
+            self.assertIn(expected, manifest)
+        for expected in ["Topology-Aware Scheduling", "Airflow", "topology spread constraints", "AdmissionChecks"]:
+            self.assertIn(expected, docs)
 
     def test_tenancy_fairness_report_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -416,6 +434,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "slo_error_budget.json",
                 "accelerator_capacity_plan.json",
                 "device_allocation_plan.json",
+                "topology_placement_plan.json",
                 "tenancy_fairness_report.json",
                 "identity_access_report.json",
                 "performance_budget.json",
@@ -464,6 +483,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "index.html").exists())
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
             self.assertTrue((root / "reports" / "device_allocation_plan.json").exists())
+            self.assertTrue((root / "reports" / "topology_placement_plan.json").exists())
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
             self.assertTrue((root / "reports" / "identity_access_report.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())
