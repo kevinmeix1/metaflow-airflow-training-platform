@@ -13,6 +13,7 @@ from training_orchestration_platform.data import generate_partition, validate_ro
 from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
 from training_orchestration_platform.gitops_release import build_gitops_plan
 from training_orchestration_platform.governance import build_governance_bundle
+from training_orchestration_platform.identity import build_identity_access_report
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl, write_json
 from training_orchestration_platform.model import evaluate_gates
 from training_orchestration_platform.network_security import build_network_security_report
@@ -299,7 +300,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -329,6 +330,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("ml-training-cohort", report["fairness"]["cohort"])
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
             for expected in ["ResourceQuota", "LimitRange", "RoleBinding", "NetworkPolicy", "Cohort", "ClusterQueue", "airflow-tenant-pools"]:
+                self.assertIn(expected, manifest)
+
+    def test_identity_access_report_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "workload-identity.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_identity_access_report(root)
+            service_accounts = {identity["service_account"] for identity in report["identities"]}
+
+            self.assertTrue(report["passed"])
+            self.assertIn("metaflow-partition-worker", service_accounts)
+            self.assertTrue((root / "reports" / "identity_access_report.json").exists())
+            for expected in ["ServiceAccount", "automountServiceAccountToken: false", "SecretStore", "ExternalSecret", "refreshInterval: 30m", "eks.amazonaws.com/role-arn", "spiffe.io/spiffe-id", "airflow-workload-identity-policy"]:
                 self.assertIn(expected, manifest)
 
     def test_orchestration_scorecard_covers_advanced_controls(self) -> None:
@@ -382,6 +397,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "slo_error_budget.json",
                 "accelerator_capacity_plan.json",
                 "tenancy_fairness_report.json",
+                "identity_access_report.json",
                 "performance_budget.json",
                 "queue_simulation.json",
                 "release_admission_decision.json",
@@ -428,6 +444,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "index.html").exists())
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
+            self.assertTrue((root / "reports" / "identity_access_report.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())
             self.assertTrue((root / "reports" / "queue_simulation.json").exists())
             self.assertTrue((root / "reports" / "release_admission_decision.json").exists())

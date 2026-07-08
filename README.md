@@ -107,6 +107,8 @@ For GPU ResourceFlavors, Dynamic Resource Allocation notes, MIG/time-slicing tra
 
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
+For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).
+
 For partition throughput, wave-packing, Airflow queue, and recovery regression gates, see [performance budgets](docs/performance-budgets.md).
 
 For Kueue quota pressure, indexed backfill priority, failed-partition preemption, GPU use, and Airflow pool examples, see [queue capacity simulation](docs/queue-capacity-simulation.md).

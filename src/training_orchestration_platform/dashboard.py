@@ -33,6 +33,39 @@ def partition_chips(value: object) -> str:
     return "".join(chips) or '<span class="chip muted">none</span>'
 
 
+TASK_LABELS = {
+    "extract_partition": "extract",
+    "validate_partition": "validate",
+    "metaflow_train": "train",
+    "pipeline": "pipeline",
+}
+
+
+def compact_label(value: object) -> str:
+    text = "" if value is None else str(value)
+    if text in TASK_LABELS:
+        display = TASK_LABELS[text]
+    elif text.startswith("demand-2026-"):
+        display = f"demand v{text[-5:]}"
+    elif text.endswith("-queue"):
+        display = text[:-6].replace("-", " ")
+    else:
+        display = text.replace("_", " ")
+    return f'<span class="nowrap" title="{esc(text)}">{esc(display)}</span>'
+
+
+def asset_label(value: object) -> str:
+    text = "" if value is None else str(value)
+    display = text.replace("_", " ").replace("-", " ")
+    return f'<span class="asset-label" title="{esc(text)}">{esc(display)}</span>'
+
+
+def time_label(value: object) -> str:
+    text = "" if value is None else str(value)
+    display = text[11:16] if len(text) >= 16 else text
+    return f'<span class="nowrap" title="{esc(text)}">{esc(display)}</span>'
+
+
 def rows(items: list[dict], columns: list[str]) -> str:
     if not items:
         return f"<tr><td colspan='{len(columns)}'>No records</td></tr>"
@@ -61,11 +94,11 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     capacity_plan = read_json(root / "reports" / "backfill_capacity_plan.json") if (root / "reports" / "backfill_capacity_plan.json").exists() else {}
     recent = [
         {
-            "date": row.get("ds"),
-            "task": row.get("task"),
-            "status": status_badge(str(row.get("status"))),
-            "run": row.get("run_id", "")[:8],
-            "time": row.get("timestamp", "")[:19],
+                "date": row.get("ds"),
+                "task": compact_label(row.get("task")),
+                "status": status_badge(str(row.get("status"))),
+                "run": compact_label(row.get("run_id", "")[:6]),
+                "time": time_label(row.get("timestamp", "")),
         }
         for row in runs[-18:]
     ]
@@ -77,7 +110,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         model_rows.append(
             {
                 "date": row.get("ds"),
-                "model": details.get("model_version"),
+                "model": compact_label(details.get("model_version")),
                 "gates": badge(gates.get("passed", False)),
                 "rmse": metrics.get("rmse"),
                 "mape": metrics.get("mape"),
@@ -108,6 +141,14 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         th, td {{ border-bottom:1px solid #e8edf3; padding:11px 12px; text-align:left; font-size:14px; overflow-wrap:anywhere; vertical-align:top; }}
         th {{ background:#f8fafc; color:#334155; }}
         tr:last-child td {{ border-bottom:0; }}
+        .model-runs col:nth-child(1) {{ width:20%; }}
+        .model-runs col:nth-child(2) {{ width:24%; }}
+        .model-runs col:nth-child(3) {{ width:20%; }}
+        .events col:nth-child(1) {{ width:20%; }}
+        .events col:nth-child(2) {{ width:28%; }}
+        .events col:nth-child(3) {{ width:20%; }}
+        .events col:nth-child(4) {{ width:16%; }}
+        .events col:nth-child(5) {{ width:16%; }}
         .badge {{ display:inline-block; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:800; }}
         .metric .badge {{ width:auto; max-width:max-content; }}
         .pass {{ color:#166534; background:#dcfce7; }}
@@ -115,6 +156,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .neutral {{ color:#334155; background:#e2e8f0; }}
         .chip {{ display:inline-block; margin:0 5px 5px 0; padding:4px 8px; border-radius:999px; background:#ecfdf5; color:#166534; font-size:12px; font-weight:800; white-space:nowrap; }}
         .chip.muted {{ background:#f1f5f9; color:#475569; }}
+        .nowrap {{ display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }}
         .summary {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }}
         .summary div {{ border:1px solid #e3e9f0; border-radius:6px; padding:12px; min-height:74px; }}
         .summary span {{ display:block; color:#64748b; font-size:12px; margin-bottom:8px; }}
@@ -138,11 +180,11 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           <div>
             <div class="panel">
               <h2>Model Runs</h2>
-              <table><tr><th>Date</th><th>Model</th><th>Gates</th><th>RMSE</th><th>MAPE</th></tr>{rows(model_rows, ['date', 'model', 'gates', 'rmse', 'mape'])}</table>
+              <table class="model-runs"><colgroup><col><col><col><col><col></colgroup><tr><th>Date</th><th>Model</th><th>Gates</th><th>RMSE</th><th>MAPE</th></tr>{rows(model_rows, ['date', 'model', 'gates', 'rmse', 'mape'])}</table>
             </div>
             <div class="panel">
               <h2>Recent Orchestration Events</h2>
-              <table><tr><th>Date</th><th>Task</th><th>Status</th><th>Run</th><th>Time</th></tr>{rows(recent, ['date', 'task', 'status', 'run', 'time'])}</table>
+              <table class="events"><colgroup><col><col><col><col><col></colgroup><tr><th>Date</th><th>Task</th><th>Status</th><th>Run</th><th>Time</th></tr>{rows(recent, ['date', 'task', 'status', 'run', 'time'])}</table>
             </div>
           </div>
           <div>
@@ -151,7 +193,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
               <div class="summary">
                 <div><span>Workloads</span><strong>{esc(capacity_plan.get('workload_count', 'n/a'))}</strong></div>
                 <div><span>Waves</span><strong>{esc(capacity_plan.get('wave_count', 'n/a'))}</strong></div>
-                <div><span>Queue</span><strong>{esc(capacity_plan.get('queue', 'n/a'))}</strong></div>
+                <div><span>Queue</span><strong>{compact_label(capacity_plan.get('queue', 'n/a'))}</strong></div>
                 <div><span>Skipped partitions</span><strong>{partition_chips(capacity_plan.get('skipped_partitions', []))}</strong></div>
               </div>
             </div>
@@ -166,7 +208,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
             </div>
             <div class="panel">
               <h2>Lineage</h2>
-              <table><tr><th>Asset</th><th>Downstream</th></tr>{rows([{'asset': k, 'downstream': ', '.join(v)} for k, v in lineage.items()], ['asset', 'downstream'])}</table>
+              <table><tr><th>Asset</th><th>Downstream</th></tr>{rows([{'asset': asset_label(k), 'downstream': asset_label(', '.join(v))} for k, v in lineage.items()], ['asset', 'downstream'])}</table>
             </div>
           </div>
         </section>

@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: airflow-training-scheduler
+  namespace: ml-training-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/training-airflow-scheduler
+  labels:
+    app.kubernetes.io/part-of: metaflow-airflow-training-platform
+    spiffe.io/spiffe-id: spiffe://mlops.local/ns/ml-training-prod/sa/airflow-training-scheduler
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metaflow-partition-worker
+  namespace: ml-training-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/metaflow-partition-worker
+  labels:
+    app.kubernetes.io/part-of: metaflow-airflow-training-platform
+    spiffe.io/spiffe-id: spiffe://mlops.local/ns/ml-training-prod/sa/metaflow-partition-worker
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mlflow-registrar
+  namespace: ml-training-quality
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/mlflow-training-registrar
+  labels:
+    app.kubernetes.io/part-of: metaflow-airflow-training-platform
+    spiffe.io/spiffe-id: spiffe://mlops.local/ns/ml-training-quality/sa/mlflow-registrar
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: partition-worker-minimal
+  namespace: ml-training-prod
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: partition-worker-minimal
+  namespace: ml-training-prod
+subjects:
+  - kind: ServiceAccount
+    name: metaflow-partition-worker
+    namespace: ml-training-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: partition-worker-minimal
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: training-aws-secrets
+  namespace: ml-training-prod
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: us-east-1
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: airflow-training-scheduler
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: mlflow-readwrite-token
+  namespace: ml-training-prod
+spec:
+  refreshInterval: 30m
+  secretStoreRef:
+    name: training-aws-secrets
+    kind: SecretStore
+  target:
+    name: mlflow-readwrite-token
+    creationPolicy: Owner
+  data:
+    - secretKey: token
+      remoteRef:
+        key: prod/training/mlflow
+        property: token
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-workload-identity-policy
+  namespace: ml-training-prod
+data:
+  service_account_name: metaflow-partition-worker
+  projected_token_audience: sts.amazonaws.com
+  projected_token_ttl_seconds: "3600"
+  kubernetes_pod_operator_default: "pin service_account_name for mapped partitions"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: workload-identity-egress
+  namespace: ml-training-prod
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: metaflow-airflow-training-platform
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

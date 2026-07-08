@@ -13,6 +13,7 @@ from .dashboard import render_dashboard
 from .disaster_recovery import build_disaster_recovery_plan
 from .gitops_release import build_gitops_plan
 from .governance import build_governance_bundle
+from .identity import build_identity_access_report
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
@@ -50,6 +51,7 @@ def demo(output: str | Path) -> dict:
         primary_workload="partitioned training backfills and feature-heavy model families",
     )
     tenancy = build_tenancy_report(root)
+    identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
     queue_simulation = build_queue_simulation(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
@@ -86,6 +88,7 @@ def demo(output: str | Path) -> dict:
         "cloud_migration": cloud_migration,
         "accelerator_capacity": accelerator_capacity,
         "tenancy": tenancy,
+        "identity_access": identity_access,
         "performance_budget": performance_budget,
         "queue_simulation": queue_simulation,
         "release_admission": release_admission,
@@ -159,6 +162,8 @@ def main(argv: list[str] | None = None) -> int:
     accelerator_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
+    identity_parser = sub.add_parser("identity-report")
+    identity_parser.add_argument("--output", default=".local")
     performance_parser = sub.add_parser("performance-budget")
     performance_parser.add_argument("--output", default=".local")
     queue_parser = sub.add_parser("queue-simulation")
@@ -204,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
+    elif args.command == "identity-report":
+        print(json.dumps(build_identity_access_report(args.output), indent=2, sort_keys=True))
     elif args.command == "performance-budget":
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
     elif args.command == "queue-simulation":
