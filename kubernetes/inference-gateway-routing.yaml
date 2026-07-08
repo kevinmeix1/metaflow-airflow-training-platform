@@ -1,0 +1,158 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: demand-forecast-inference-route
+  namespace: mlops-training
+spec:
+  parentRefs:
+    - name: shared-inference-gateway
+      namespace: mlops-serving
+      sectionName: http
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/demand-forecast
+      backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: demand-forecast-inference-pool
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-forecast-model-server
+  namespace: mlops-training
+  labels:
+    app: demand-forecast-model-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demand-forecast-model-server
+  template:
+    metadata:
+      labels:
+        app: demand-forecast-model-server
+        mlflow.model/name: daily-demand-forecaster
+    spec:
+      containers:
+        - name: model-server
+          image: ghcr.io/kevinmeix1/demand-forecast-server@sha256:replace-with-approved-digest
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-endpoint-picker
+  namespace: mlops-training
+  labels:
+    app: demand-epp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demand-epp
+  template:
+    metadata:
+      labels:
+        app: demand-epp
+    spec:
+      containers:
+        - name: epp
+          image: registry.k8s.io/gateway-api-inference-extension/epp@sha256:replace-with-approved-digest
+          args:
+            - --pool-name
+            - demand-forecast-inference-pool
+            - --pool-namespace
+            - mlops-training
+          ports:
+            - name: ext-proc
+              containerPort: 9002
+            - name: grpc-health
+              containerPort: 9003
+          readinessProbe:
+            grpc:
+              port: 9003
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demand-endpoint-picker
+  namespace: mlops-training
+spec:
+  selector:
+    app: demand-epp
+  ports:
+    - name: ext-proc
+      protocol: TCP
+      port: 9002
+      targetPort: 9002
+      appProtocol: http2
+---
+apiVersion: inference.networking.k8s.io/v1
+kind: InferencePool
+metadata:
+  name: demand-forecast-inference-pool
+  namespace: mlops-training
+spec:
+  targetPorts:
+    - number: 8000
+  selector:
+    app: demand-forecast-model-server
+  endpointPickerRef:
+    name: demand-endpoint-picker
+    port:
+      number: 9002
+    failureMode: FailOpen
+---
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferenceObjective
+metadata:
+  name: demand-forecast-online
+  namespace: mlops-training
+spec:
+  priority: 20
+  poolRef:
+    group: inference.networking.k8s.io
+    kind: InferencePool
+    name: demand-forecast-inference-pool
+---
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferenceObjective
+metadata:
+  name: demand-backtest-batch
+  namespace: mlops-training
+spec:
+  priority: -5
+  poolRef:
+    group: inference.networking.k8s.io
+    kind: InferencePool
+    name: demand-forecast-inference-pool
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demand-inference-gateway-routing
+  namespace: mlops-training
+spec:
+  groups:
+    - name: demand.inference.gateway
+      rules:
+        - alert: DemandEndpointPickerUnavailable
+          expr: up{job="demand-endpoint-picker"} == 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Demand endpoint picker is unavailable; keep the previous champion route active."

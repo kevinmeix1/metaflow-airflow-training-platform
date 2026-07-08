@@ -111,6 +111,8 @@ For Kueue topology-aware backfills, rack-level placement, Airflow scheduler spre
 
 For elastic KubeRay backfill waves, Kueue admission, GPU worker bounds, and Metaflow recovery fallbacks, see [KubeRay and Kueue](docs/kuberay-kueue.md).
 
+For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).

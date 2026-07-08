@@ -15,6 +15,7 @@ from training_orchestration_platform.disaster_recovery import build_disaster_rec
 from training_orchestration_platform.gitops_release import build_gitops_plan
 from training_orchestration_platform.governance import build_governance_bundle
 from training_orchestration_platform.identity import build_identity_access_report
+from training_orchestration_platform.inference_gateway import build_inference_gateway_plan
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl, write_json
 from training_orchestration_platform.kuberay_capacity import build_kuberay_capacity_plan
 from training_orchestration_platform.model import evaluate_gates
@@ -303,7 +304,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -374,6 +375,23 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn(expected, docs)
         for expected in ["submit_kuberay_backfill_wave", "wait_for_kuberay_backfill_wave_deferrable", "rayjob/demand-elastic-backfill"]:
             self.assertIn(expected, dag)
+
+    def test_inference_gateway_plan_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "inference-gateway-routing.yaml").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "inference-gateway.md").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_inference_gateway_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "publish_champion_inference_pool")
+            self.assertEqual(report["pool"]["api_version"], "inference.networking.k8s.io/v1")
+            self.assertTrue((root / "reports" / "inference_gateway_plan.json").exists())
+        for expected in ["InferencePool", "InferenceObjective", "endpointPickerRef", "FailOpen", "HTTPRoute", "DemandEndpointPickerUnavailable"]:
+            self.assertIn(expected, manifest)
+        for expected in ["Gateway API Inference Extension", "InferencePool", "Endpoint Picker", "training"]:
+            self.assertIn(expected, docs)
 
     def test_tenancy_fairness_report_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -457,6 +475,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "device_allocation_plan.json",
                 "topology_placement_plan.json",
                 "kuberay_capacity_plan.json",
+                "inference_gateway_plan.json",
                 "tenancy_fairness_report.json",
                 "identity_access_report.json",
                 "performance_budget.json",
@@ -507,6 +526,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "device_allocation_plan.json").exists())
             self.assertTrue((root / "reports" / "topology_placement_plan.json").exists())
             self.assertTrue((root / "reports" / "kuberay_capacity_plan.json").exists())
+            self.assertTrue((root / "reports" / "inference_gateway_plan.json").exists())
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
             self.assertTrue((root / "reports" / "identity_access_report.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())

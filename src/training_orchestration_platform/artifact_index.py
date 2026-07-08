@@ -27,6 +27,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Device Allocation", "device_allocation_plan.json", "DRA ResourceClaim templates, Kueue coupling, partition fallbacks, and device-health guardrails."),
         ("Topology Placement", "topology_placement_plan.json", "Kueue TAS, rack-aware distributed backfills, Airflow HA spread, and wave-splitting fallbacks."),
         ("KubeRay Capacity", "kuberay_capacity_plan.json", "Elastic Ray backfill waves, Kueue queueing, GPU worker bounds, and Metaflow recovery fallbacks."),
+        ("Inference Gateway", "inference_gateway_plan.json", "Promoted champion InferencePool, endpoint picker fallback, route priorities, and serving handoff evidence."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),

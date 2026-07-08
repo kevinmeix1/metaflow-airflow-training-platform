@@ -15,6 +15,7 @@ from .disaster_recovery import build_disaster_recovery_plan
 from .gitops_release import build_gitops_plan
 from .governance import build_governance_bundle
 from .identity import build_identity_access_report
+from .inference_gateway import build_inference_gateway_plan
 from .kuberay_capacity import build_kuberay_capacity_plan
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
@@ -56,6 +57,7 @@ def demo(output: str | Path) -> dict:
     device_allocation = build_device_allocation_plan(root)
     topology_placement = build_topology_placement_plan(root)
     kuberay_capacity = build_kuberay_capacity_plan(root)
+    inference_gateway = build_inference_gateway_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -96,6 +98,7 @@ def demo(output: str | Path) -> dict:
         "device_allocation": device_allocation,
         "topology_placement": topology_placement,
         "kuberay_capacity": kuberay_capacity,
+        "inference_gateway": inference_gateway,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -175,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
     topology_parser.add_argument("--output", default=".local")
     kuberay_parser = sub.add_parser("kuberay-plan")
     kuberay_parser.add_argument("--output", default=".local")
+    inference_gateway_parser = sub.add_parser("inference-gateway-plan")
+    inference_gateway_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -228,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_topology_placement_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "kuberay-plan":
         print(json.dumps(build_kuberay_capacity_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "inference-gateway-plan":
+        print(json.dumps(build_inference_gateway_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":
