@@ -1,0 +1,129 @@
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: gpu-l4-shared
+  labels:
+    platform.mlops.dev/device-tier: shared-training
+spec:
+  selectors:
+    - cel:
+        expression: "device.driver == 'gpu.resource.kubernetes.io'"
+---
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: gpu-a100-mig
+  labels:
+    platform.mlops.dev/device-tier: isolated-training
+spec:
+  selectors:
+    - cel:
+        expression: "device.driver == 'gpu.resource.kubernetes.io'"
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: l4-shared-training
+  namespace: mlops-training
+  labels:
+    platform.mlops.dev/workload: feature-heavy-backfill
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: gpu-l4-shared
+            allocationMode: ExactCount
+            count: 1
+      config:
+        - opaque:
+            driver: gpu.resource.kubernetes.io
+            parameters:
+              sharingStrategy: time-slicing
+              replicas: "4"
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: a100-mig-training
+  namespace: mlops-training
+  labels:
+    platform.mlops.dev/workload: memory-bound-training
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: gpu-a100-mig
+            allocationMode: ExactCount
+            count: 1
+      config:
+        - opaque:
+            driver: gpu.resource.kubernetes.io
+            parameters:
+              sharingStrategy: mig
+              profile: 1g.10gb
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demand-training-dra-backfill
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/component: device-allocation
+    platform.mlops.dev/backfill-wave: dra-smoke
+  annotations:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    kueue.x-k8s.io/priority-class: backfill-critical
+spec:
+  completions: 8
+  parallelism: 4
+  completionMode: Indexed
+  backoffLimitPerIndex: 1
+  template:
+    spec:
+      serviceAccountName: metaflow-partition-worker
+      restartPolicy: Never
+      resourceClaims:
+        - name: training-gpu
+          resourceClaimTemplateName: l4-shared-training
+      containers:
+        - name: train-partition
+          image: ghcr.io/kevinmeix1/demand-training@sha256:replace-with-digest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              PARTITION_DATE="$(
+                python - <<'PY'
+              from datetime import date, timedelta
+              import os
+              print((date(2026, 6, 1) + timedelta(days=int(os.environ["JOB_COMPLETION_INDEX"]))).isoformat())
+              PY
+              )"
+              python -m training_orchestration_platform run --output /workspace --date "$PARTITION_DATE"
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demand-training-dra-resource-claims
+  namespace: mlops-training
+spec:
+  groups:
+    - name: demand.training.dra.claims
+      rules:
+        - alert: DemandTrainingDRAClaimPending
+          expr: kube_resourceclaim_status_phase{namespace="mlops-training",phase="Pending"} > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A DRA ResourceClaim is pending; keep the backfill wave at its current width."

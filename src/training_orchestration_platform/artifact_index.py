@@ -24,6 +24,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Supply Chain Evidence", "supply_chain_evidence.json", "Artifact hashes, GitHub attestations, SLSA provenance, and Sigstore policy controls."),
         ("Cloud Migration Plan", "cloud_migration_plan.json", "Migration notes for MWAA, EKS, Karpenter, MLflow, and managed data platforms."),
         ("Accelerator Plan", "accelerator_capacity_plan.json", "GPU, DRA, Kueue, MIG, and time-slicing plan for accelerator-aware training."),
+        ("Device Allocation", "device_allocation_plan.json", "DRA ResourceClaim templates, Kueue coupling, partition fallbacks, and device-health guardrails."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),

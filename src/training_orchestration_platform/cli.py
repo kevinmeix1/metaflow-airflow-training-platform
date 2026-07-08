@@ -10,6 +10,7 @@ from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
 from .dashboard import render_dashboard
+from .device_allocation import build_device_allocation_plan
 from .disaster_recovery import build_disaster_recovery_plan
 from .gitops_release import build_gitops_plan
 from .governance import build_governance_bundle
@@ -50,6 +51,7 @@ def demo(output: str | Path) -> dict:
         project="Metaflow Airflow Training Platform",
         primary_workload="partitioned training backfills and feature-heavy model families",
     )
+    device_allocation = build_device_allocation_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -87,6 +89,7 @@ def demo(output: str | Path) -> dict:
         "slo_error_budget": slo_error_budget,
         "cloud_migration": cloud_migration,
         "accelerator_capacity": accelerator_capacity,
+        "device_allocation": device_allocation,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -160,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
     scorecard_parser.add_argument("--output", default=".local")
     accelerator_parser = sub.add_parser("accelerator-plan")
     accelerator_parser.add_argument("--output", default=".local")
+    device_parser = sub.add_parser("device-plan")
+    device_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -207,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_orchestration_scorecard(args.output, project="Metaflow Airflow Training Platform"), indent=2, sort_keys=True))
     elif args.command == "accelerator-plan":
         print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
+    elif args.command == "device-plan":
+        print(json.dumps(build_device_allocation_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

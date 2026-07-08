@@ -105,6 +105,8 @@ For an automated scan of advanced Airflow, Kubernetes, lineage, scaling, GitOps,
 
 For GPU ResourceFlavors, Dynamic Resource Allocation notes, MIG/time-slicing trade-offs, and accelerator quota planning, see [accelerator scheduling](docs/accelerator-scheduling.md).
 
+For concrete DRA ResourceClaimTemplates, Kueue-coupled training admission, and CPU fallback paths, see [dynamic resource allocation](docs/dynamic-resource-allocation.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).
