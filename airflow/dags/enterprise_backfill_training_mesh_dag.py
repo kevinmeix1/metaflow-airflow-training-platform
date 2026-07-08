@@ -19,6 +19,13 @@ DOMAINS = ["north", "south", "enterprise", "digital"]
 MODEL_FAMILIES = ["baseline", "promo_lift", "inventory_capped"]
 VALIDATION_SUITES = ["contract", "freshness", "volume", "distribution"]
 TRAINING_IMAGE = "ghcr.io/kevinmeix1/metaflow-airflow-training-platform:2026.07.0"
+EVENT_DRIVEN_ASSET_EXPRESSION = "(RAW_SALES & PARTITION_MANIFESTS) | FAILED_PARTITION_REPLAY"
+ASSET_WATCHER_CONTRACTS = {
+    "AssetWatcher": "object-store, partition manifest, and MLflow candidate events update Airflow training assets",
+    "BaseEventTrigger": "watchers must inherit from BaseEventTrigger to avoid rescheduling loops",
+    "shared_stream_key": "object-store and registry watchers share upstream polling across subscribers",
+    "AssetAlias": "runtime Metaflow artifact and MLflow model URIs resolve after task execution",
+}
 
 
 def pod(task_id: str, command: str, *, pool: str = "training_pool", priority_weight: int = 1):

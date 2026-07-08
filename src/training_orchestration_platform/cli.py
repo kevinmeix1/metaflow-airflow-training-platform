@@ -16,6 +16,7 @@ from .deadline_alerts import build_deadline_alert_plan
 from .device_allocation import build_device_allocation_plan
 from .disaster_recovery import build_disaster_recovery_plan
 from .elastic_workload import build_elastic_workload_plan
+from .event_driven_assets import build_event_driven_assets_plan
 from .gitops_release import build_gitops_plan
 from .governance import build_governance_bundle
 from .identity import build_identity_access_report
@@ -75,6 +76,7 @@ def demo(output: str | Path) -> dict:
     provisioning_admission = build_provisioning_admission_plan(root)
     multikueue_dispatch = build_multikueue_dispatch_plan(root)
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
+    event_driven_assets = build_event_driven_assets_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -125,6 +127,7 @@ def demo(output: str | Path) -> dict:
         "provisioning_admission": provisioning_admission,
         "multikueue_dispatch": multikueue_dispatch,
         "dag_bundle_versioning": dag_bundle_versioning,
+        "event_driven_assets": event_driven_assets,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -223,6 +226,8 @@ def main(argv: list[str] | None = None) -> int:
     multikueue_parser.add_argument("--output", default=".local")
     dag_bundle_parser = sub.add_parser("dag-bundle-plan")
     dag_bundle_parser.add_argument("--output", default=".local")
+    event_assets_parser = sub.add_parser("event-driven-assets")
+    event_assets_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -296,6 +301,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_multikueue_dispatch_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "dag-bundle-plan":
         print(json.dumps(build_dag_bundle_versioning_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "event-driven-assets":
+        print(json.dumps(build_event_driven_assets_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

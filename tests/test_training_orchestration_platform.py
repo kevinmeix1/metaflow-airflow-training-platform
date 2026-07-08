@@ -16,6 +16,7 @@ from training_orchestration_platform.deadline_alerts import build_deadline_alert
 from training_orchestration_platform.device_allocation import build_device_allocation_plan
 from training_orchestration_platform.disaster_recovery import build_disaster_recovery_plan
 from training_orchestration_platform.elastic_workload import build_elastic_workload_plan
+from training_orchestration_platform.event_driven_assets import build_event_driven_assets_plan
 from training_orchestration_platform.gitops_release import build_gitops_plan
 from training_orchestration_platform.governance import build_governance_bundle
 from training_orchestration_platform.identity import build_identity_access_report
@@ -319,7 +320,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "event_driven_assets_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -511,6 +512,24 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn(expected, docs)
         self.assertIn("rerun_with_latest_version=False", dag)
 
+    def test_event_driven_assets_plan_and_docs_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        docs = (repo / "docs" / "event-driven-assets.md").read_text(encoding="utf-8")
+        dag = (repo / "airflow" / "dags" / "enterprise_backfill_training_mesh_dag.py").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_event_driven_assets_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "enable_airflow3_training_event_assets")
+            self.assertEqual(report["asset_expression"], "(RAW_SALES & PARTITION_MANIFESTS) | FAILED_PARTITION_REPLAY")
+            self.assertTrue(all(asset["trigger_base_class"] == "BaseEventTrigger" for asset in report["event_assets"]))
+            self.assertTrue((root / "reports" / "event_driven_assets_plan.json").exists())
+        for expected in ["AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias", "conditional asset expression"]:
+            self.assertIn(expected, docs)
+        for expected in ["EVENT_DRIVEN_ASSET_EXPRESSION", "AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias"]:
+            self.assertIn(expected, dag)
+
     def test_inference_gateway_plan_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         manifest = (repo / "kubernetes" / "inference-gateway-routing.yaml").read_text(encoding="utf-8")
@@ -628,6 +647,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("multikueue_dispatch", names)
             self.assertIn("oci_image_volume_artifacts", names)
             self.assertIn("airflow_dag_bundle_versioning", names)
+            self.assertIn("airflow_event_driven_assets", names)
             self.assertIn("supply_chain_provenance", names)
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
 
@@ -680,6 +700,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "multikueue_dispatch_plan.json",
                 "oci_artifact_volume_plan.json",
                 "dag_bundle_versioning_plan.json",
+                "event_driven_assets_plan.json",
                 "tenancy_fairness_report.json",
                 "identity_access_report.json",
                 "performance_budget.json",
@@ -739,6 +760,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "multikueue_dispatch_plan.json").exists())
             self.assertTrue((root / "reports" / "oci_artifact_volume_plan.json").exists())
             self.assertTrue((root / "reports" / "dag_bundle_versioning_plan.json").exists())
+            self.assertTrue((root / "reports" / "event_driven_assets_plan.json").exists())
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
             self.assertTrue((root / "reports" / "identity_access_report.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())
