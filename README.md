@@ -1,5 +1,7 @@
 # Metaflow + Airflow Training Orchestration Platform
 
+[![Training Orchestration CI](https://github.com/kevinmeix1/metaflow-airflow-training-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinmeix1/metaflow-airflow-training-platform/actions/workflows/ci.yml)
+
 A production-style training orchestration project that demonstrates partitioned backfills, retryable task runs, Metaflow-style training, Airflow scheduling, MLflow-style tracking, asset lineage, failure recovery, and training health observability.
 
 The default demo runs locally with no external services. Airflow and Metaflow integration files show how the same lifecycle maps to production orchestration.
