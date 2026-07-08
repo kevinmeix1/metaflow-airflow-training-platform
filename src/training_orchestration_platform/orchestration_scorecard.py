@@ -72,6 +72,7 @@ def build_orchestration_scorecard(
         ("kueue_pending_workload_visibility", _present(content, "pending_workload_visibility_plan.json", "VisibilityOnDemand", "pendingworkloads") and _present(content, "kueue_admission_wait_time_seconds", "kueue_cluster_queue_resource_pending"), "Kueue VisibilityOnDemand exposes pending backfill, replay, and HPO workloads before Airflow widens fanout"),
         ("dra_resource_health_status", _present(content, "resource_health_status_plan.json", "ResourceHealthStatus", "allocatedResourcesStatus") and _present(content, "DeviceTaintRule", "kube_resourceclaim_status_devices"), "Kubernetes v1.36 DRA ResourceHealthStatus, ResourceClaim device status, and DeviceTaintRule quarantine protect partitioned training"),
         ("dra_advanced_device_sharing", _present(content, "advanced_device_sharing_plan.json", "DRAPrioritizedList", "DRAPartitionableDevices") and _present(content, "DRAConsumableCapacity", "DRADeviceBindingConditions"), "DRA prioritized alternatives, partitionable devices, consumable capacity, and binding conditions reduce training accelerator waste"),
+        ("dra_admin_access_diagnostics", _present(content, "admin_access_diagnostics_plan.json", "DRAAdminAccess", "adminAccess: true") and _present(content, "resource.kubernetes.io/admin-access", "mlops-training-dra-admin"), "Kubernetes v1.36 DRA AdminAccess diagnostics inspect in-use training devices while deterministic replay stays runnable"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -115,6 +116,7 @@ def build_orchestration_scorecard(
             "Kueue VisibilityOnDemand pending workload APIs for backfill, schema replay, failed-partition recovery, and HPO triage",
             "Kubernetes v1.36 DRA ResourceHealthStatus, ResourceClaim status.devices, and DeviceTaintRule quarantine for training accelerator incidents",
             "Kubernetes DRA prioritized alternatives, partitionable devices, consumable capacity, and device binding conditions for training accelerator efficiency",
+            "Kubernetes v1.36 DRA AdminAccess for namespace-scoped backfill and HPO diagnostics on devices already in use",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [

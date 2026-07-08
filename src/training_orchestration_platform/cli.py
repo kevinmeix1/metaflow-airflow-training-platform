@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .accelerator_plan import build_accelerator_capacity_plan
+from .admin_access_diagnostics import build_admin_access_diagnostic_plan
 from .advanced_device_sharing import build_advanced_device_sharing_plan
 from .artifact_index import render_artifact_index
 from .capacity_planner import build_backfill_plan
@@ -73,6 +74,7 @@ def demo(output: str | Path) -> dict:
     device_allocation = build_device_allocation_plan(root)
     resource_health_status = build_resource_health_status_plan(root)
     advanced_device_sharing = build_advanced_device_sharing_plan(root)
+    admin_access_diagnostics = build_admin_access_diagnostic_plan(root)
     topology_placement = build_topology_placement_plan(root)
     kuberay_capacity = build_kuberay_capacity_plan(root)
     inference_gateway = build_inference_gateway_plan(root)
@@ -130,6 +132,7 @@ def demo(output: str | Path) -> dict:
         "device_allocation": device_allocation,
         "resource_health_status": resource_health_status,
         "advanced_device_sharing": advanced_device_sharing,
+        "admin_access_diagnostics": admin_access_diagnostics,
         "topology_placement": topology_placement,
         "kuberay_capacity": kuberay_capacity,
         "inference_gateway": inference_gateway,
@@ -226,6 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     resource_health_parser.add_argument("--output", default=".local")
     advanced_sharing_parser = sub.add_parser("advanced-device-sharing")
     advanced_sharing_parser.add_argument("--output", default=".local")
+    admin_access_parser = sub.add_parser("admin-access-diagnostics")
+    admin_access_parser.add_argument("--output", default=".local")
     topology_parser = sub.add_parser("topology-plan")
     topology_parser.add_argument("--output", default=".local")
     kuberay_parser = sub.add_parser("kuberay-plan")
@@ -313,6 +318,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_resource_health_status_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "advanced-device-sharing":
         print(json.dumps(build_advanced_device_sharing_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "admin-access-diagnostics":
+        print(json.dumps(build_admin_access_diagnostic_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "topology-plan":
         print(json.dumps(build_topology_placement_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "kuberay-plan":
