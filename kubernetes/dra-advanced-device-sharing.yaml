@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-dra-advanced-device-sharing-examples
+  namespace: mlops-training
+data:
+  prioritized-list-resourceclaimtemplate.yaml: |
+    apiVersion: resource.k8s.io/v1
+    kind: ResourceClaimTemplate
+    metadata:
+      name: feature-heavy-backfill-prioritized-accelerator
+      namespace: mlops-training
+    spec:
+      spec:
+        devices:
+          requests:
+            - name: training-accelerator
+              prioritizedList:
+                - deviceClassName: gpu-a100-mig
+                  count: 1
+                - deviceClassName: gpu-l4-shared
+                  count: 1
+                - deviceClassName: cpu-baseline
+                  count: 1
+  partitionable-resource-slice.yaml: |
+    apiVersion: resource.k8s.io/v1
+    kind: ResourceSlice
+    metadata:
+      name: a100-partitionable-hpo-pool
+    spec:
+      driver: gpu.resource.kubernetes.io
+      pool:
+        name: hpo-a100-pool
+        generation: 1
+        resourceSliceCount: 1
+      devices:
+        - name: a100-hpo-parent-0
+          partitionable: true
+          attributes:
+            model:
+              string: A100
+            partitioning:
+              string: mig
+  consumable-capacity-request.yaml: |
+    apiVersion: resource.k8s.io/v1
+    kind: ResourceClaimTemplate
+    metadata:
+      name: hpo-smoke-sweep-consumable-gpu
+      namespace: mlops-training
+    spec:
+      spec:
+        devices:
+          requests:
+            - name: hpo-vgpu-memory
+              deviceClassName: partitionable-a100
+              capacity:
+                requests:
+                  memory: 4Gi
+              constraints:
+                - distinctAttribute: device-id
+  binding-conditions-resource-slice.yaml: |
+    apiVersion: resource.k8s.io/v1
+    kind: ResourceSlice
+    metadata:
+      name: memory-bound-training-fabric-a100
+    spec:
+      driver: gpu.resource.kubernetes.io
+      pool:
+        name: training-fabric-a100-pool
+        generation: 1
+        resourceSliceCount: 1
+      devices:
+        - name: fabric-a100-training-0
+          bindsToNode: true
+          bindingConditions:
+            - gpu.resource.kubernetes.io/is-prepared
+          bindingFailureConditions:
+            - gpu.resource.kubernetes.io/preparing-failed
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-dra-advanced-device-sharing
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.dra.advanced.device.sharing
+      rules:
+        - alert: TrainingDRADeviceBindingWaitHigh
+          expr: histogram_quantile(0.95, sum(rate(kube_scheduler_plugin_duration_seconds_bucket{plugin="DynamicResources",extension_point="PreBind"}[5m])) by (le)) > 30
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "DRA device binding conditions are slowing memory-bound training"
+        - alert: TrainingDRAConsumableCapacityExhausted
+          expr: sum(kube_resourceclaim_status_allocation_capacity{namespace="mlops-training",resource=~"memory|bandwidth"}) by (namespace, resource) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "DRA consumable capacity is saturated for HPO or backfill training"
