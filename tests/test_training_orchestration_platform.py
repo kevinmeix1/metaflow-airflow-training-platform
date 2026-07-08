@@ -21,6 +21,7 @@ from training_orchestration_platform.orchestration_scorecard import build_orches
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.performance_budget import build_performance_budget_report
 from training_orchestration_platform.queue_simulator import build_queue_simulation
+from training_orchestration_platform.release_admission import build_release_admission_decision, evaluate_release_admission
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.slo import build_slo_report
 from training_orchestration_platform.supply_chain import build_supply_chain_evidence
@@ -90,6 +91,36 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "queue_simulation.json").exists())
             self.assertIn("PriorityClass", manifest)
             self.assertIn("DemandTrainingQueuePressureHigh", manifest)
+
+    def test_release_admission_admits_or_throttles_backfills(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "release-admission-policy.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / "reports" / "slo_error_budget.json", {"max_burn_rate": 0.2, "release_freeze": False, "recommended_action": "allow_backfill"})
+            write_json(root / "reports" / "performance_budget.json", {"passed": True, "checks": []})
+            write_json(root / "reports" / "queue_simulation.json", {"passed": True, "pending_count": 0, "simulation": {"pending": []}})
+            write_json(root / "reports" / "governance_evidence_bundle.json", {"release": {"decision": "approved_training_artifact"}})
+            write_json(root / "reports" / "supply_chain_evidence.json", {"artifact_count": 8, "subject": {"attestation_action": "actions/attest@v4"}})
+            write_json(root / "reports" / "backfill_capacity_plan.json", {"wave_count": 2, "workload_count": 6})
+
+            decision = build_release_admission_decision(root)
+            throttled = evaluate_release_admission(
+                slo={"max_burn_rate": 7.0, "release_freeze": True, "recommended_action": "hold_bulk_backfills"},
+                performance={"passed": True, "checks": []},
+                queue={"passed": True, "pending_count": 0, "simulation": {"pending": []}},
+                governance={"release": {"decision": "approved_training_artifact"}},
+                supply_chain={"artifact_count": 8, "subject": {"attestation_action": "actions/attest@v4"}},
+                capacity_plan={"wave_count": 2, "workload_count": 6},
+            )
+
+            self.assertEqual(decision["decision"]["recommended_action"], "admit_backfill_wave")
+            self.assertFalse(decision["decision"]["unsafe_allow"])
+            self.assertEqual(throttled["recommended_action"], "throttle_bulk_backfill")
+            self.assertTrue((root / "reports" / "release_admission_decision.json").exists())
+            self.assertIn("ValidatingAdmissionPolicy", manifest)
+            self.assertIn("AnalysisTemplate", manifest)
+            self.assertIn("DemandTrainingAdmissionUnsafeAllow", manifest)
 
     def test_performance_budget_report_and_prometheus_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -267,7 +298,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "queue_simulation.json", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -336,6 +367,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "accelerator_capacity_plan.json",
                 "performance_budget.json",
                 "queue_simulation.json",
+                "release_admission_decision.json",
                 "resource_optimization.json",
                 "network_security.json",
                 "chaos_drill_report.json",
@@ -380,6 +412,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())
             self.assertTrue((root / "reports" / "queue_simulation.json").exists())
+            self.assertTrue((root / "reports" / "release_admission_decision.json").exists())
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
             self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())
 

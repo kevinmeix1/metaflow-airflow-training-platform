@@ -1,0 +1,90 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: demand-training-backfill-evidence
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs"]
+  validations:
+    - expression: "has(object.metadata.annotations) && has(object.metadata.annotations['mlops.dev/release-decision'])"
+      message: "Training Jobs require the generated release admission decision."
+    - expression: "object.metadata.annotations['mlops.dev/release-decision'] in ['admit_backfill_wave', 'hold_backfill_wave', 'throttle_bulk_backfill', 'freeze_backfills_and_page', 'reserve_failed_partition_recovery']"
+      message: "release-decision must match a training controller action."
+    - expression: "has(object.metadata.annotations['mlops.dev/evidence-sha']) && size(object.metadata.annotations['mlops.dev/evidence-sha']) == 64"
+      message: "training admission requires a sha256 evidence bundle reference."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: demand-training-backfill-evidence
+spec:
+  policyName: demand-training-backfill-evidence
+  validationActions: ["Deny"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: demand-training-control-plane-analysis
+  namespace: ml-training
+spec:
+  metrics:
+    - name: backfill-success-burn
+      interval: 5m
+      count: 3
+      failureLimit: 1
+      successCondition: result[0] < 6
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: max(mlops_slo_burn_rate{slo="partition_training_success"})
+    - name: airflow-queue-wait
+      interval: 5m
+      count: 3
+      failureLimit: 1
+      successCondition: result[0] < 60
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: histogram_quantile(0.95, sum(rate(airflow_task_queued_duration_seconds_bucket{pool="metaflow_training_pool"}[15m])) by (le))
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demand-training-release-admission
+  namespace: ml-training
+spec:
+  groups:
+    - name: demand-training.release.admission
+      rules:
+        - alert: DemandTrainingAdmissionUnsafeAllow
+          expr: mlops_release_admission_unsafe_allow{platform="metaflow-airflow-training"} > 0
+          for: 1m
+          labels:
+            severity: critical
+            team: training-platform
+          annotations:
+            summary: Backfill admission attempted to admit a wave while fail-closed gates failed.
+        - alert: DemandTrainingBulkBackfillThrottled
+          expr: mlops_release_admission_throttle{platform="metaflow-airflow-training"} > 0
+          for: 10m
+          labels:
+            severity: warning
+            team: training-platform
+          annotations:
+            summary: Bulk backfills are throttled by SLO, queue, capacity, governance, or provenance policy.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demand-training-release-admission-assets
+  namespace: ml-training
+data:
+  airflow_assets.txt: |
+    asset://ml-training/demand/backfill-capacity-plan
+    asset://ml-training/demand/slo-error-budget
+    asset://ml-training/demand/release-admission-decision

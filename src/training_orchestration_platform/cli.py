@@ -19,6 +19,7 @@ from .orchestration_scorecard import build_orchestration_scorecard
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
 from .queue_simulator import build_queue_simulation
+from .release_admission import build_release_admission_decision
 from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
 from .supply_chain import build_supply_chain_evidence
@@ -50,13 +51,6 @@ def demo(output: str | Path) -> dict:
     performance_budget = build_performance_budget_report(root)
     queue_simulation = build_queue_simulation(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
-    artifact_index = render_artifact_index(
-        root,
-        title="Metaflow Airflow Training Platform",
-        description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
-        dashboard="training_orchestration_dashboard.html",
-    )
-    orchestration_scorecard = build_orchestration_scorecard(root, project="Metaflow Airflow Training Platform")
     supply_chain = build_supply_chain_evidence(
         root,
         project="Metaflow Airflow Training Platform",
@@ -64,6 +58,14 @@ def demo(output: str | Path) -> dict:
         workflow="Training Orchestration CI",
         namespace="mlops-training",
     )
+    release_admission = build_release_admission_decision(root)
+    artifact_index = render_artifact_index(
+        root,
+        title="Metaflow Airflow Training Platform",
+        description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
+        dashboard="training_orchestration_dashboard.html",
+    )
+    orchestration_scorecard = build_orchestration_scorecard(root, project="Metaflow Airflow Training Platform")
     return {
         "initial_backfill": first,
         "idempotent_backfill": skipped,
@@ -83,6 +85,7 @@ def demo(output: str | Path) -> dict:
         "accelerator_capacity": accelerator_capacity,
         "performance_budget": performance_budget,
         "queue_simulation": queue_simulation,
+        "release_admission": release_admission,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,
@@ -155,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
     performance_parser.add_argument("--output", default=".local")
     queue_parser = sub.add_parser("queue-simulation")
     queue_parser.add_argument("--output", default=".local")
+    admission_parser = sub.add_parser("release-admission")
+    admission_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -196,4 +201,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
     elif args.command == "queue-simulation":
         print(json.dumps(build_queue_simulation(args.output), indent=2, sort_keys=True))
+    elif args.command == "release-admission":
+        print(json.dumps(build_release_admission_decision(args.output), indent=2, sort_keys=True))
     return 0
