@@ -123,6 +123,8 @@ For Kueue ProvisioningRequest admission checks, physical autoscaler capacity gua
 
 For Kueue MultiKueue manager-to-worker training dispatch, cross-cluster quota alignment, worker status sync, and failover, see [MultiKueue dispatch](docs/multikueue-dispatch.md).
 
+For Kubernetes image-volume OCI artifact mounts, digest-pinned training inputs, read-only Metaflow bundles, warmup jobs, and PVC/S3 fallback semantics, see [OCI artifact volumes](docs/oci-artifact-volumes.md).
+
 For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
 
 For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes telemetry attributes with row redaction, see [semantic telemetry contract](docs/semantic-telemetry.md).

@@ -27,6 +27,7 @@ from training_orchestration_platform.multikueue_dispatch import build_multikueue
 from training_orchestration_platform.network_security import build_network_security_report
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.orchestration_scorecard import build_orchestration_scorecard
+from training_orchestration_platform.oci_artifact_volume import build_oci_artifact_volume_plan
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.performance_budget import build_performance_budget_report
 from training_orchestration_platform.provisioning_admission import build_provisioning_admission_plan
@@ -53,6 +54,8 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["KubernetesPodOperator", "task_group", "BranchPythonOperator", "Asset", "expand("]:
             self.assertIn(expected, dag_text)
         for expected in ["deferrable=True", "pod_template_file", "capacity_admission", "reserve_kueue_backfill_quota"]:
+            self.assertIn(expected, dag_text)
+        for expected in ["TRAINING_IMAGE", "2026.07.0", "image_pull_policy=\"IfNotPresent\"", "verify_oci_artifact_volume_mounts"]:
             self.assertIn(expected, dag_text)
         for expected in ["CronJob", "completionMode: Indexed", "parallelism: 4", "RoleBinding", "ConfigMap", "kueue.x-k8s.io/queue-name"]:
             self.assertIn(expected, workload_text)
@@ -315,7 +318,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "multikueue_dispatch_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -462,6 +465,29 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["MultiKueue Dispatch", "manager cluster", "worker clusters", "status.clusterName"]:
             self.assertIn(expected, docs)
 
+    def test_oci_artifact_volume_plan_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "oci-artifact-volumes.yaml").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "oci-artifact-volumes.md").read_text(encoding="utf-8")
+        dag = (repo / "airflow" / "dags" / "enterprise_backfill_training_mesh_dag.py").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_oci_artifact_volume_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "enable_kubernetes_image_volume_artifacts")
+            self.assertEqual(report["feature"]["feature_state"], "Kubernetes v1.36 stable")
+            self.assertTrue(all("@sha256:" in bundle["reference"] for bundle in report["artifact_bundles"]))
+            self.assertTrue(all(bundle["read_only"] for bundle in report["artifact_bundles"]))
+            self.assertTrue(any(check["name"] == "startup_failure_recovery" for check in report["checks"]))
+            self.assertTrue((root / "reports" / "oci_artifact_volume_plan.json").exists())
+        for expected in ["image:", "reference: ghcr.io/kevinmeix1/demand-training-dataset@sha256", "pullPolicy: IfNotPresent", "readOnly: true", "training-artifact-volume-smoke", "training-artifact-volume-warmup"]:
+            self.assertIn(expected, manifest)
+        for expected in ["OCI Artifact Volumes", "Kubernetes v1.36", "PVC/S3 fallback", "read-only"]:
+            self.assertIn(expected, docs)
+        for expected in ["verify_oci_artifact_volume_mounts", "kubernetes/oci-artifact-volumes.yaml", "IfNotPresent"]:
+            self.assertIn(expected, dag)
+
     def test_inference_gateway_plan_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         manifest = (repo / "kubernetes" / "inference-gateway-routing.yaml").read_text(encoding="utf-8")
@@ -577,6 +603,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("indexed_job_resilience", names)
             self.assertIn("provisioning_admission_checks", names)
             self.assertIn("multikueue_dispatch", names)
+            self.assertIn("oci_image_volume_artifacts", names)
             self.assertIn("supply_chain_provenance", names)
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
 
@@ -627,6 +654,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "indexed_job_resilience_plan.json",
                 "provisioning_admission_plan.json",
                 "multikueue_dispatch_plan.json",
+                "oci_artifact_volume_plan.json",
                 "tenancy_fairness_report.json",
                 "identity_access_report.json",
                 "performance_budget.json",
@@ -684,6 +712,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "elastic_workload_plan.json").exists())
             self.assertTrue((root / "reports" / "indexed_job_resilience_plan.json").exists())
             self.assertTrue((root / "reports" / "multikueue_dispatch_plan.json").exists())
+            self.assertTrue((root / "reports" / "oci_artifact_volume_plan.json").exists())
             self.assertTrue((root / "reports" / "tenancy_fairness_report.json").exists())
             self.assertTrue((root / "reports" / "identity_access_report.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())

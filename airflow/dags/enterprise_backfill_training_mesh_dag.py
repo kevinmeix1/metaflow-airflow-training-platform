@@ -18,13 +18,15 @@ except Exception:
 DOMAINS = ["north", "south", "enterprise", "digital"]
 MODEL_FAMILIES = ["baseline", "promo_lift", "inventory_capped"]
 VALIDATION_SUITES = ["contract", "freshness", "volume", "distribution"]
+TRAINING_IMAGE = "ghcr.io/kevinmeix1/metaflow-airflow-training-platform:2026.07.0"
 
 
 def pod(task_id: str, command: str, *, pool: str = "training_pool", priority_weight: int = 1):
     return KubernetesPodOperator(
         task_id=task_id,
         namespace="ml-training",
-        image="ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest",
+        image=TRAINING_IMAGE,
+        image_pull_policy="IfNotPresent",
         cmds=["bash", "-lc"],
         arguments=[command],
         service_account_name="demand-training-runner",
@@ -43,7 +45,7 @@ def pod(task_id: str, command: str, *, pool: str = "training_pool", priority_wei
         priority_weight=priority_weight,
         retries=2,
         retry_delay=timedelta(minutes=5),
-        labels={"platform": "metaflow-airflow-training", "task": task_id},
+        labels={"platform": "metaflow-airflow-training", "task": task_id, "artifact-locality": "oci-image-volume"},
     )
 
 
@@ -103,6 +105,11 @@ if AIRFLOW_AVAILABLE:
                 "kubectl get clusterqueue demand-training-cluster-queue -o yaml",
                 priority_weight=4,
             )
+            verify_artifact_volumes = pod(
+                "verify_oci_artifact_volume_mounts",
+                "kubectl apply -f kubernetes/oci-artifact-volumes.yaml && kubectl wait --for=condition=Complete job/training-artifact-volume-smoke -n ml-training --timeout=10m",
+                priority_weight=6,
+            )
             submit_ray_backfill_wave = pod(
                 "submit_kuberay_backfill_wave",
                 "kubectl apply -f kubernetes/kuberay-kueue-workloads.yaml",
@@ -118,7 +125,7 @@ if AIRFLOW_AVAILABLE:
                 "kubectl wait --for=condition=Complete job/demand-training-admission-smoke -n ml-training --timeout=15m",
                 priority_weight=4,
             )
-            reserve_backfill_quota >> inspect_cluster_queue >> submit_ray_backfill_wave >> wait_for_ray_backfill_wave >> wait_for_partition_workers
+            reserve_backfill_quota >> inspect_cluster_queue >> verify_artifact_volumes >> submit_ray_backfill_wave >> wait_for_ray_backfill_wave >> wait_for_partition_workers
             return wait_for_partition_workers
 
         @task_group(group_id="metaflow_training_grid")

@@ -35,6 +35,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Indexed Job Resilience", "indexed_job_resilience_plan.json", "Kubernetes Indexed Jobs, per-index retries, success policy, pod failure policy, and bounded Airflow backfills."),
         ("Provisioning Admission", "provisioning_admission_plan.json", "Kueue ProvisioningRequest capacity checks, autoscaler retry strategy, node targeting, and fallback queueing."),
         ("MultiKueue Dispatch", "multikueue_dispatch_plan.json", "Kueue MultiKueue manager and worker dispatch, quota alignment, status sync, and worker failover evidence."),
+        ("OCI Artifact Volumes", "oci_artifact_volume_plan.json", "Kubernetes image-volume training artifacts, digest-pinned bundles, read-only mounts, warmups, and fallback controls."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),

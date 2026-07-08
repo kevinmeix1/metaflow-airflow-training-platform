@@ -25,6 +25,7 @@ from .multikueue_dispatch import build_multikueue_dispatch_plan
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
+from .oci_artifact_volume import build_oci_artifact_volume_plan
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
 from .provisioning_admission import build_provisioning_admission_plan
@@ -76,6 +77,7 @@ def demo(output: str | Path) -> dict:
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
     queue_simulation = build_queue_simulation(root)
+    oci_artifact_volume = build_oci_artifact_volume_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
         root,
@@ -124,6 +126,7 @@ def demo(output: str | Path) -> dict:
         "identity_access": identity_access,
         "performance_budget": performance_budget,
         "queue_simulation": queue_simulation,
+        "oci_artifact_volume": oci_artifact_volume,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
@@ -223,6 +226,8 @@ def main(argv: list[str] | None = None) -> int:
     performance_parser.add_argument("--output", default=".local")
     queue_parser = sub.add_parser("queue-simulation")
     queue_parser.add_argument("--output", default=".local")
+    artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
+    artifact_volume_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
     admission_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
@@ -292,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
     elif args.command == "queue-simulation":
         print(json.dumps(build_queue_simulation(args.output), indent=2, sort_keys=True))
+    elif args.command == "oci-artifact-volumes":
+        print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":
         print(json.dumps(build_release_admission_decision(args.output), indent=2, sort_keys=True))
     return 0
