@@ -157,6 +157,8 @@ For Kubernetes v1.36 Workload/PodGroup readiness across partition backfills, HPO
 
 For Kubernetes v1.36 user namespaces, `hostUsers: false`, fine-grained kubelet authorization, and `nodes/proxy` regression prevention for training telemetry, see [runtime security](docs/runtime-security.md).
 
+For Kubernetes v1.36 controller staleness mitigation, `/statusz`, `/flagz`, PSI metrics, and native-histogram readiness for backfill automation, see [control plane diagnostics](docs/control-plane-diagnostics.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).

@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -141,6 +141,9 @@ workload-aware-scheduling:
 runtime-security:
 	PYTHONPATH=src python3 -m training_orchestration_platform runtime-security --output .local
 
+control-plane-diagnostics:
+	PYTHONPATH=src python3 -m training_orchestration_platform control-plane-diagnostics --output .local
+
 oci-artifact-volumes:
 	PYTHONPATH=src python3 -m training_orchestration_platform oci-artifact-volumes --output .local
 
@@ -186,6 +189,7 @@ ci-verify:
 	test -f .local/reports/queue_simulation.json
 	test -f .local/reports/workload_aware_scheduling_plan.json
 	test -f .local/reports/runtime_security_plan.json
+	test -f .local/reports/control_plane_diagnostics_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
 	test -f .local/reports/release_admission_decision.json
 	test -f .local/supply-chain/subject.checksums.txt
@@ -224,6 +228,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/queue_simulation.json >/dev/null
 	python3 -m json.tool .local/reports/workload_aware_scheduling_plan.json >/dev/null
 	python3 -m json.tool .local/reports/runtime_security_plan.json >/dev/null
+	python3 -m json.tool .local/reports/control_plane_diagnostics_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
 
@@ -264,6 +269,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/workload-identity.yaml"
 	@echo "  kubectl apply -f kubernetes/performance-budget-policy.yaml"
 	@echo "  kubectl apply -f kubernetes/queue-simulation-policy.yaml"
+	@echo "  kubectl apply -f kubernetes/control-plane-diagnostics.yaml"
 	@echo "  kubectl apply -f kubernetes/release-admission-policy.yaml"
 	@echo "  kubectl apply -f kubernetes/opencost-finops.yaml"
 	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"
