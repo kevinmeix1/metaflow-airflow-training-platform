@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demand-ray-entrypoints
+  namespace: mlops-training
+data:
+  elastic_backfill.py: |
+    import ray
+
+    ray.init()
+
+    @ray.remote
+    def train_partition(ds, family):
+        return {"ds": ds, "family": family, "rmse": 4.2, "passed": True}
+
+    dates = ["2026-06-01", "2026-06-02", "2026-06-03"]
+    families = ["baseline", "promo_lift", "inventory_capped"]
+    print(ray.get([train_partition.remote(ds, family) for ds in dates for family in families]))
+---
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: demand-elastic-backfill
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/component: kuberay-backfill
+    kueue.x-k8s.io/queue-name: demand-training-queue
+  annotations:
+    kueue.x-k8s.io/elastic-job: "true"
+spec:
+  shutdownAfterJobFinishes: true
+  entrypoint: python /home/ray/jobs/elastic_backfill.py
+  rayClusterSpec:
+    enableInTreeAutoscaling: true
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: 0.0.0.0
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray@sha256:replace-with-approved-digest
+              ports:
+                - containerPort: 8265
+                  name: dashboard
+                - containerPort: 6379
+                  name: gcs
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: 4Gi
+                limits:
+                  cpu: "4"
+                  memory: 8Gi
+              volumeMounts:
+                - name: job-code
+                  mountPath: /home/ray/jobs
+          volumes:
+            - name: job-code
+              configMap:
+                name: demand-ray-entrypoints
+    workerGroupSpecs:
+      - groupName: gpu-backfill-workers
+        replicas: 4
+        minReplicas: 4
+        maxReplicas: 24
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray@sha256:replace-with-approved-digest
+                resources:
+                  requests:
+                    cpu: "4"
+                    memory: 16Gi
+                    nvidia.com/gpu: "1"
+                  limits:
+                    cpu: "8"
+                    memory: 32Gi
+                    nvidia.com/gpu: "1"
+---
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: feature-quality-sweep
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/component: kuberay-quality-sweep
+    kueue.x-k8s.io/queue-name: feature-sweep-queue
+  annotations:
+    kueue.x-k8s.io/elastic-job: "true"
+spec:
+  shutdownAfterJobFinishes: true
+  entrypoint: python -c "import ray; ray.init(); print('feature quality sweep admitted')"
+  rayClusterSpec:
+    enableInTreeAutoscaling: true
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: 0.0.0.0
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray@sha256:replace-with-approved-digest
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: 1Gi
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+    workerGroupSpecs:
+      - groupName: quality-workers
+        replicas: 1
+        minReplicas: 1
+        maxReplicas: 12
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray@sha256:replace-with-approved-digest
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: 4Gi
+                  limits:
+                    cpu: "4"
+                    memory: 8Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kuberay-training-backfills
+  namespace: mlops-training
+spec:
+  groups:
+    - name: kuberay.training.backfills
+      rules:
+        - alert: DemandRayBackfillWorkersPending
+          expr: ray_cluster_pending_nodes{ray_io_cluster=~"demand-.*"} > 4
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Elastic Ray backfill workers are pending; reduce Airflow backfill width or hold low-priority sweeps."

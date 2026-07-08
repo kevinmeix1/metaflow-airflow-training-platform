@@ -103,12 +103,22 @@ if AIRFLOW_AVAILABLE:
                 "kubectl get clusterqueue demand-training-cluster-queue -o yaml",
                 priority_weight=4,
             )
+            submit_ray_backfill_wave = pod(
+                "submit_kuberay_backfill_wave",
+                "kubectl apply -f kubernetes/kuberay-kueue-workloads.yaml",
+                priority_weight=5,
+            )
+            wait_for_ray_backfill_wave = pod(
+                "wait_for_kuberay_backfill_wave_deferrable",
+                "kubectl wait --for=condition=Complete rayjob/demand-elastic-backfill -n mlops-training --timeout=45m",
+                priority_weight=5,
+            )
             wait_for_partition_workers = pod(
                 "wait_for_partition_workers_deferrable",
                 "kubectl wait --for=condition=Complete job/demand-training-admission-smoke -n ml-training --timeout=15m",
                 priority_weight=4,
             )
-            reserve_backfill_quota >> inspect_cluster_queue >> wait_for_partition_workers
+            reserve_backfill_quota >> inspect_cluster_queue >> submit_ray_backfill_wave >> wait_for_ray_backfill_wave >> wait_for_partition_workers
             return wait_for_partition_workers
 
         @task_group(group_id="metaflow_training_grid")
