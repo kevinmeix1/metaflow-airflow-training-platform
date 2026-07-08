@@ -73,6 +73,7 @@ def build_orchestration_scorecard(
         ("dra_resource_health_status", _present(content, "resource_health_status_plan.json", "ResourceHealthStatus", "allocatedResourcesStatus") and _present(content, "DeviceTaintRule", "kube_resourceclaim_status_devices"), "Kubernetes v1.36 DRA ResourceHealthStatus, ResourceClaim device status, and DeviceTaintRule quarantine protect partitioned training"),
         ("dra_advanced_device_sharing", _present(content, "advanced_device_sharing_plan.json", "DRAPrioritizedList", "DRAPartitionableDevices") and _present(content, "DRAConsumableCapacity", "DRADeviceBindingConditions"), "DRA prioritized alternatives, partitionable devices, consumable capacity, and binding conditions reduce training accelerator waste"),
         ("dra_admin_access_diagnostics", _present(content, "admin_access_diagnostics_plan.json", "DRAAdminAccess", "adminAccess: true") and _present(content, "resource.kubernetes.io/admin-access", "mlops-training-dra-admin"), "Kubernetes v1.36 DRA AdminAccess diagnostics inspect in-use training devices while deterministic replay stays runnable"),
+        ("kubernetes_inplace_resize", _present(content, "inplace_resize_plan.json", "InPlaceOrRecreate", "PodResizePending") and _present(content, "pods/resize", "PodResizeInProgress"), "Kubernetes in-place Pod resize and pod-level resource resize preserve partition lineage during non-disruptive training scaling"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -117,6 +118,7 @@ def build_orchestration_scorecard(
             "Kubernetes v1.36 DRA ResourceHealthStatus, ResourceClaim status.devices, and DeviceTaintRule quarantine for training accelerator incidents",
             "Kubernetes DRA prioritized alternatives, partitionable devices, consumable capacity, and device binding conditions for training accelerator efficiency",
             "Kubernetes v1.36 DRA AdminAccess for namespace-scoped backfill and HPO diagnostics on devices already in use",
+            "Kubernetes v1.35 in-place Pod Resize and v1.36 pod-level resource resize for non-disruptive training backfill scaling",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [

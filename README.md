@@ -117,6 +117,8 @@ For DRA prioritized alternatives, partitionable devices, consumable capacity, an
 
 For Kubernetes v1.36 DRA `AdminAccess` diagnostics with Airflow map index, Metaflow run id, MLflow run id, and deterministic replay guardrails, see [Training DRA AdminAccess diagnostics](docs/dra-admin-access-diagnostics.md).
 
+For Kubernetes v1.35 in-place Pod Resize, v1.36 pod-level resource resizing, partition-lineage preservation, and VPA `InPlaceOrRecreate` guardrails, see [training in-place Pod resize controls](docs/inplace-pod-resize.md).
+
 For Kueue topology-aware backfills, rack-level placement, Airflow scheduler spread, and wave-splitting fallbacks, see [topology-aware scheduling](docs/topology-aware-scheduling.md).
 
 For elastic KubeRay backfill waves, Kueue admission, GPU worker bounds, and Metaflow recovery fallbacks, see [KubeRay and Kueue](docs/kuberay-kueue.md).

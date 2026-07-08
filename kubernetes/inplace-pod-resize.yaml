@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-inplace-pod-resize-runbook
+  namespace: mlops-training
+data:
+  partition-worker-cpu-resize.sh: |
+    kubectl patch pod feature-heavy-backfill-0 \
+      -n mlops-training \
+      --subresource resize \
+      --type merge \
+      --patch '{"spec":{"containers":[{"name":"metaflow-worker","resources":{"requests":{"cpu":"1500m"},"limits":{"cpu":"2","memory":"2Gi"}}}]}}'
+  pod-level-training-resize.sh: |
+    kubectl patch pod memory-bound-training-worker-0 \
+      -n mlops-training \
+      --subresource resize \
+      --type merge \
+      --patch '{"spec":{"resources":{"requests":{"memory":"24Gi"},"limits":{"cpu":"12","memory":"32Gi"}}}}'
+  observe-resize-status.sh: |
+    kubectl get pod feature-heavy-backfill-0 -n mlops-training -o jsonpath='{.status.conditions[?(@.type=="PodResizePending")].reason}{"\n"}{.status.conditions[?(@.type=="PodResizeInProgress")].reason}{"\n"}{.status.containerStatuses[*].resources}'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-heavy-backfill-workers
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: feature-heavy-backfill
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: feature-heavy-backfill
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: feature-heavy-backfill
+    spec:
+      resources:
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+      containers:
+        - name: metaflow-worker
+          image: ghcr.io/kevinmeix1/metaflow-training-worker:2026.07.08
+          imagePullPolicy: IfNotPresent
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: NotRequired
+            - resourceName: memory
+              restartPolicy: RestartContainer
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          env:
+            - name: AIRFLOW_MAP_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['airflow.apache.org/map-index']
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: feature-heavy-backfill-inplace-or-recreate
+  namespace: mlops-training
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: feature-heavy-backfill-workers
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+  resourcePolicy:
+    containerPolicies:
+      - containerName: metaflow-worker
+        controlledResources: ["cpu", "memory"]
+        minAllowed:
+          cpu: "250m"
+          memory: "512Mi"
+        maxAllowed:
+          cpu: "4"
+          memory: "8Gi"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-inplace-pod-resize
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.inplace.pod.resize
+      rules:
+        - alert: TrainingInPlaceResizePendingTooLong
+          expr: kube_pod_status_condition{namespace="mlops-training",condition="PodResizePending",status="true"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A training worker resize is pending capacity admission"
+        - alert: TrainingInPlaceResizeInProgressTooLong
+          expr: kube_pod_status_condition{namespace="mlops-training",condition="PodResizeInProgress",status="true"} > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "A training worker resize is admitted but not fully applied to cgroups"
