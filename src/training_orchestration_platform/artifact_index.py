@@ -25,8 +25,11 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Cloud Migration Plan", "cloud_migration_plan.json", "Migration notes for MWAA, EKS, Karpenter, MLflow, and managed data platforms."),
         ("Accelerator Plan", "accelerator_capacity_plan.json", "GPU, DRA, Kueue, MIG, and time-slicing plan for accelerator-aware training."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
+        ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Resource Optimization", "resource_optimization.json", "Requests, limits, VPA, HPA, and Kueue recommendations for partitioned training."),
         ("Network Security", "network_security.json", "mTLS, network policy, and Airflow-to-storage access topology for training workloads."),
+        ("Chaos Drill", "chaos_drill_report.json", "Backfill failure-injection scenarios with blast radius and recovery objectives."),
+        ("GitOps Plan", "gitops_plan.json", "Promotion waves, smoke backfill gates, rollback commands, and GitOps controls."),
         ("Orchestration Scorecard", "orchestration_scorecard.json", "Automated scan of advanced Airflow, Kubernetes, lineage, and security controls."),
     ]
     card_html = "\n".join(

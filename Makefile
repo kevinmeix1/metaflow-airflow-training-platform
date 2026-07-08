@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan performance-budget ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan performance-budget queue-simulation ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -57,6 +57,9 @@ accelerator-plan:
 performance-budget:
 	PYTHONPATH=src python3 -m training_orchestration_platform performance-budget --output .local
 
+queue-simulation:
+	PYTHONPATH=src python3 -m training_orchestration_platform queue-simulation --output .local
+
 ci-verify:
 	PYTHONPATH=src python3 -m compileall -q src tests
 	test -f .local/reports/training_orchestration_dashboard.html
@@ -68,6 +71,7 @@ ci-verify:
 	test -f .local/reports/orchestration_scorecard.json
 	test -f .local/reports/accelerator_capacity_plan.json
 	test -f .local/reports/performance_budget.json
+	test -f .local/reports/queue_simulation.json
 	test -f .local/supply-chain/subject.checksums.txt
 	python3 -m json.tool .local/reports/governance_evidence_bundle.json >/dev/null
 	python3 -m json.tool .local/reports/slo_error_budget.json >/dev/null
@@ -76,6 +80,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/orchestration_scorecard.json >/dev/null
 	python3 -m json.tool .local/reports/accelerator_capacity_plan.json >/dev/null
 	python3 -m json.tool .local/reports/performance_budget.json >/dev/null
+	python3 -m json.tool .local/reports/queue_simulation.json >/dev/null
 
 kubernetes-plan:
 	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
@@ -94,6 +99,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/supply-chain-policy.yaml"
 	@echo "  kubectl apply -f kubernetes/accelerator-scheduling.yaml"
 	@echo "  kubectl apply -f kubernetes/performance-budget-policy.yaml"
+	@echo "  kubectl apply -f kubernetes/queue-simulation-policy.yaml"
 	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"
 
 test:

@@ -20,6 +20,7 @@ from training_orchestration_platform.orchestrator import backfill, run_log_path,
 from training_orchestration_platform.orchestration_scorecard import build_orchestration_scorecard
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.performance_budget import build_performance_budget_report
+from training_orchestration_platform.queue_simulator import build_queue_simulation
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.slo import build_slo_report
 from training_orchestration_platform.supply_chain import build_supply_chain_evidence
@@ -75,6 +76,20 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["ScaledJob", "kafka", "lagThreshold", "limitToPartitionsWithLag", "demand-training-queue"]:
             self.assertIn(expected, autoscaling)
+
+    def test_queue_simulation_models_backfill_recovery_priority(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "queue-simulation-policy.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_queue_simulation(root)
+
+            self.assertTrue(report["passed"])
+            self.assertGreaterEqual(report["preempted_count"], 1)
+            self.assertTrue(any(item["name"] == "failed-partition-smoke-replay" for item in report["simulation"]["admitted"]))
+            self.assertTrue((root / "reports" / "queue_simulation.json").exists())
+            self.assertIn("PriorityClass", manifest)
+            self.assertIn("DemandTrainingQueuePressureHigh", manifest)
 
     def test_performance_budget_report_and_prometheus_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -252,7 +267,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "queue_simulation.json", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -320,8 +335,11 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "slo_error_budget.json",
                 "accelerator_capacity_plan.json",
                 "performance_budget.json",
+                "queue_simulation.json",
                 "resource_optimization.json",
                 "network_security.json",
+                "chaos_drill_report.json",
+                "gitops_plan.json",
                 "orchestration_scorecard.json",
                 "supply_chain_evidence.json",
                 "cloud_migration_plan.json",
@@ -361,6 +379,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "index.html").exists())
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
             self.assertTrue((root / "reports" / "performance_budget.json").exists())
+            self.assertTrue((root / "reports" / "queue_simulation.json").exists())
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
             self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())
 

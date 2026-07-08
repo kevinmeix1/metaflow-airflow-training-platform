@@ -18,6 +18,7 @@ from .orchestrator import backfill, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
+from .queue_simulator import build_queue_simulation
 from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
 from .supply_chain import build_supply_chain_evidence
@@ -47,6 +48,7 @@ def demo(output: str | Path) -> dict:
         primary_workload="partitioned training backfills and feature-heavy model families",
     )
     performance_budget = build_performance_budget_report(root)
+    queue_simulation = build_queue_simulation(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     artifact_index = render_artifact_index(
         root,
@@ -80,6 +82,7 @@ def demo(output: str | Path) -> dict:
         "cloud_migration": cloud_migration,
         "accelerator_capacity": accelerator_capacity,
         "performance_budget": performance_budget,
+        "queue_simulation": queue_simulation,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,
@@ -150,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     accelerator_parser.add_argument("--output", default=".local")
     performance_parser = sub.add_parser("performance-budget")
     performance_parser.add_argument("--output", default=".local")
+    queue_parser = sub.add_parser("queue-simulation")
+    queue_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -189,4 +194,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
     elif args.command == "performance-budget":
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
+    elif args.command == "queue-simulation":
+        print(json.dumps(build_queue_simulation(args.output), indent=2, sort_keys=True))
     return 0
