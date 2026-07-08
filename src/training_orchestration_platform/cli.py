@@ -23,6 +23,7 @@ from .release_admission import build_release_admission_decision
 from .resource_optimizer import build_resource_optimization_report
 from .slo import build_slo_report
 from .supply_chain import build_supply_chain_evidence
+from .tenancy import build_tenancy_report
 from .traceability import build_trace_report
 
 
@@ -48,6 +49,7 @@ def demo(output: str | Path) -> dict:
         project="Metaflow Airflow Training Platform",
         primary_workload="partitioned training backfills and feature-heavy model families",
     )
+    tenancy = build_tenancy_report(root)
     performance_budget = build_performance_budget_report(root)
     queue_simulation = build_queue_simulation(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
@@ -83,6 +85,7 @@ def demo(output: str | Path) -> dict:
         "slo_error_budget": slo_error_budget,
         "cloud_migration": cloud_migration,
         "accelerator_capacity": accelerator_capacity,
+        "tenancy": tenancy,
         "performance_budget": performance_budget,
         "queue_simulation": queue_simulation,
         "release_admission": release_admission,
@@ -154,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
     scorecard_parser.add_argument("--output", default=".local")
     accelerator_parser = sub.add_parser("accelerator-plan")
     accelerator_parser.add_argument("--output", default=".local")
+    tenancy_parser = sub.add_parser("tenancy-report")
+    tenancy_parser.add_argument("--output", default=".local")
     performance_parser = sub.add_parser("performance-budget")
     performance_parser.add_argument("--output", default=".local")
     queue_parser = sub.add_parser("queue-simulation")
@@ -197,6 +202,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_orchestration_scorecard(args.output, project="Metaflow Airflow Training Platform"), indent=2, sort_keys=True))
     elif args.command == "accelerator-plan":
         print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
+    elif args.command == "tenancy-report":
+        print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "performance-budget":
         print(json.dumps(build_performance_budget_report(args.output), indent=2, sort_keys=True))
     elif args.command == "queue-simulation":

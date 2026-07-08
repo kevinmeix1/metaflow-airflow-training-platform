@@ -23,6 +23,16 @@ def status_badge(status: str) -> str:
     return f'<span class="badge neutral">{esc(status.upper())}</span>'
 
 
+def partition_chips(value: object) -> str:
+    if not isinstance(value, list):
+        return esc(value)
+    visible = value[-3:]
+    chips = [f'<span class="chip">{esc(item)}</span>' for item in visible]
+    if len(value) > len(visible):
+        chips.insert(0, f'<span class="chip muted">+{len(value) - len(visible)} earlier</span>')
+    return "".join(chips) or '<span class="chip muted">none</span>'
+
+
 def rows(items: list[dict], columns: list[str]) -> str:
     if not items:
         return f"<tr><td colspan='{len(columns)}'>No records</td></tr>"
@@ -103,6 +113,8 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .pass {{ color:#166534; background:#dcfce7; }}
         .fail {{ color:#991b1b; background:#fee2e2; }}
         .neutral {{ color:#334155; background:#e2e8f0; }}
+        .chip {{ display:inline-block; margin:0 5px 5px 0; padding:4px 8px; border-radius:999px; background:#ecfdf5; color:#166534; font-size:12px; font-weight:800; white-space:nowrap; }}
+        .chip.muted {{ background:#f1f5f9; color:#475569; }}
         .summary {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }}
         .summary div {{ border:1px solid #e3e9f0; border-radius:6px; padding:12px; min-height:74px; }}
         .summary span {{ display:block; color:#64748b; font-size:12px; margin-bottom:8px; }}
@@ -140,7 +152,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div><span>Workloads</span><strong>{esc(capacity_plan.get('workload_count', 'n/a'))}</strong></div>
                 <div><span>Waves</span><strong>{esc(capacity_plan.get('wave_count', 'n/a'))}</strong></div>
                 <div><span>Queue</span><strong>{esc(capacity_plan.get('queue', 'n/a'))}</strong></div>
-                <div><span>Skipped partitions</span><strong>{esc(capacity_plan.get('skipped_partitions', []))}</strong></div>
+                <div><span>Skipped partitions</span><strong>{partition_chips(capacity_plan.get('skipped_partitions', []))}</strong></div>
               </div>
             </div>
             <div class="panel">

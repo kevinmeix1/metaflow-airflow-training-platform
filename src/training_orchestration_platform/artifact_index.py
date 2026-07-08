@@ -27,6 +27,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),
+        ("Tenant Fairness", "tenancy_fairness_report.json", "Training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, and chargeback labels."),
         ("Resource Optimization", "resource_optimization.json", "Requests, limits, VPA, HPA, and Kueue recommendations for partitioned training."),
         ("Network Security", "network_security.json", "mTLS, network policy, and Airflow-to-storage access topology for training workloads."),
         ("Chaos Drill", "chaos_drill_report.json", "Backfill failure-injection scenarios with blast radius and recovery objectives."),

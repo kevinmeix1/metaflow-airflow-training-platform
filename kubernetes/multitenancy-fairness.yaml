@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-training-prod
+  labels:
+    platform.mlops.dev/tenant: forecasting-prod
+    platform.mlops.dev/cost-center: forecasting
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: forecasting-prod-quota
+  namespace: ml-training-prod
+spec:
+  hard:
+    requests.cpu: "30"
+    requests.memory: 120Gi
+    pods: "80"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: forecasting-prod-limits
+  namespace: ml-training-prod
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 500m
+        memory: 1Gi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forecasting-prod-edit
+  namespace: ml-training-prod
+subjects:
+  - kind: Group
+    name: demand-forecasting-team
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tenant-default-deny
+  namespace: ml-training-prod
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: ml-training-cohort
+spec:
+  fairSharing:
+    weight: 1
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: demand-training-tenant-queue
+spec:
+  cohort: ml-training-cohort
+  namespaceSelector:
+    matchLabels:
+      platform.mlops.dev/tenant: forecasting-prod
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: Any
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 30
+              borrowingLimit: 10
+            - name: memory
+              nominalQuota: 120Gi
+              borrowingLimit: 32Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-tenant-pools
+  namespace: ml-training-prod
+data:
+  pools.json: |
+    {"forecasting-prod": 9, "data-quality": 4, "feature-exploration": 2}
