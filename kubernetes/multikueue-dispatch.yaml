@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-multikueue-runbook
+  namespace: ml-training
+  labels:
+    platform.openai.com/component: multikueue-dispatch
+data:
+  runbook.md: |
+    MultiKueue manager cluster: training-manager.
+    Worker clusters: gpu-worker-east, gpu-worker-west, cpu-burst-worker.
+    The manager cluster is not configured as its own worker.
+    Watch status.nominatedClusterNames while the Workload is pending.
+    Record status.clusterName after a worker admits the Workload.
+    The remote Job is labeled kueue.x-k8s.io/prebuilt-workload-name by the manager.
+    If dispatch stalls, stop the Workload, shrink the Airflow wave, and requeue to demand-training-queue.
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: multicluster-gpu-fleet
+spec:
+  nodeLabels:
+    nodepool.platform.openai.com/fleet: multikueue-training
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: training-multikueue
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: training-multikueue-config
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: training-multikueue-config
+spec:
+  clusters:
+    - gpu-worker-east
+    - gpu-worker-west
+    - cpu-burst-worker
+  quotaManagement: Manual
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: gpu-worker-east
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: gpu-worker-east-kubeconfig
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: gpu-worker-west
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: gpu-worker-west-kubeconfig
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: cpu-burst-worker
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: cpu-burst-worker-kubeconfig
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: demand-multikueue-training
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: training-multikueue
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: multicluster-gpu-fleet
+          resources:
+            - name: cpu
+              nominalQuota: "208"
+            - name: memory
+              nominalQuota: 1664Gi
+            - name: nvidia.com/gpu
+              nominalQuota: "14"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: demand-multikueue-training
+  namespace: ml-training
+spec:
+  clusterQueue: demand-multikueue-training
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: demand-multicluster-training-
+  namespace: ml-training
+  labels:
+    kueue.x-k8s.io/queue-name: demand-multikueue-training
+    kueue.x-k8s.io/priority-class: backfill-critical
+    training.platform.openai.com/wave: gpu-distributed
+spec:
+  completionMode: Indexed
+  completions: 8
+  parallelism: 4
+  backoffLimitPerIndex: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: multicluster-demand-training
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: trainer
+          image: ghcr.io/kevinmeix1/demand-trainer@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          command: ["python", "-m", "training_orchestration_platform.worker"]
+          env:
+            - name: AIRFLOW_POOL
+              value: metaflow_training_pool
+            - name: KUEUE_DISPATCH_MODE
+              value: Incremental
+          resources:
+            requests:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-multikueue-dispatch-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: training.multikueue-dispatch
+      rules:
+        - alert: TrainingMultiKueueDispatchStalled
+          expr: histogram_quantile(0.95, sum by (le, cluster_queue) (rate(kueue_admission_checks_wait_time_seconds_bucket{cluster_queue="demand-multikueue-training"}[20m]))) > 1200 and kueue_pending_workloads{cluster_queue="demand-multikueue-training",status="active"} > 0
+          for: 20m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: MultiKueue dispatch has nominated workers but no admitted training worker cluster.
+            runbook_url: https://github.com/kevinmeix1/metaflow-airflow-training-platform/blob/main/docs/multikueue-dispatch.md

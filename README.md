@@ -121,6 +121,8 @@ For Kubernetes Indexed Jobs, per-index retry budgets, `successPolicy`, `podFailu
 
 For Kueue ProvisioningRequest admission checks, physical autoscaler capacity guarantees, retry backoff, and fallback queueing, see [provisioning admission](docs/provisioning-admission.md).
 
+For Kueue MultiKueue manager-to-worker training dispatch, cross-cluster quota alignment, worker status sync, and failover, see [MultiKueue dispatch](docs/multikueue-dispatch.md).
+
 For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
 
 For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes telemetry attributes with row redaction, see [semantic telemetry contract](docs/semantic-telemetry.md).
