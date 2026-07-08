@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kueue-elastic-workload-rollout
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: training-elastic-workloads
+    platform.mlops.dev/component: kueue-elastic-workload
+data:
+  feature-gate: ElasticJobsViaWorkloadSlices
+  rollback: disable feature gate, freeze elastic backfill expansion, and return to fixed-size JobSet waves
+  guardrails: failed-partition recovery keeps higher priority than elastic expansion
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: demand-elastic-backfill
+  namespace: mlops-training
+  labels:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    app.kubernetes.io/name: demand-elastic-backfill
+    platform.mlops.dev/workload-class: elastic-backfill
+  annotations:
+    kueue.x-k8s.io/workload-slice-name: demand-backfill-slice-a
+    kueue.x-k8s.io/workload-slice-replacement-for: mlops-training/demand-backfill-slice-000
+    kueue.x-k8s.io/elastic-job: "true"
+spec:
+  failurePolicy:
+    maxRestarts: 2
+  replicatedJobs:
+    - name: partition
+      replicas: 8
+      template:
+        spec:
+          parallelism: 4
+          completions: 4
+          completionMode: Indexed
+          template:
+            metadata:
+              labels:
+                airflow-dag: enterprise-backfill-training-mesh
+                metaflow-flow: DemandTrainingFlow
+                training-wave: elastic-backfill
+                cost-center: demand-forecasting
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: trainer
+                  image: ghcr.io/example/demand-trainer@sha256:0000000000000000000000000000000000000000000000000000000000000000
+                  args: ["python", "-m", "training_orchestration_platform.worker", "--partition=$(JOB_COMPLETION_INDEX)"]
+                  resources:
+                    requests:
+                      cpu: "1500m"
+                      memory: 3Gi
+                    limits:
+                      cpu: "2"
+                      memory: 4Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demand-elastic-replacement-smoke
+  namespace: mlops-training
+  labels:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    platform.mlops.dev/workload-class: replacement-smoke
+  annotations:
+    kueue.x-k8s.io/workload-slice-name: demand-backfill-slice-b
+    kueue.x-k8s.io/workload-slice-replacement-for: mlops-training/demand-backfill-slice-a
+spec:
+  parallelism: 2
+  completions: 2
+  completionMode: Indexed
+  template:
+    metadata:
+      labels:
+        training-wave: elastic-backfill-replacement
+        cost-center: demand-forecasting
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: replacement-smoke
+          image: ghcr.io/example/demand-trainer@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          args: ["python", "-m", "training_orchestration_platform.worker", "--smoke"]
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "1500m"
+              memory: 3Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-elastic-workload-alerts
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: training-elastic-workloads
+spec:
+  groups:
+    - name: training.kueue.elastic-workloads
+      rules:
+        - alert: TrainingElasticWorkloadSlicePending
+          expr: kueue_pending_workloads{queue="demand-training-queue"} > 0
+          for: 20m
+          labels:
+            severity: warning
+            team: ml-training
+          annotations:
+            summary: Elastic backfill Workload Slice has been pending longer than the queue budget.
+            runbook_url: docs/kueue-elastic-workloads.md
+        - alert: TrainingElasticReplacementSliceLag
+          expr: kueue_admitted_workloads{queue="demand-training-queue"} == 0
+          for: 10m
+          labels:
+            severity: page
+            team: ml-training
+          annotations:
+            summary: Replacement Workload Slice was not admitted; hold elastic scale-down.
+            runbook_url: docs/kueue-elastic-workloads.md
+        - alert: TrainingJobSetReplicaLag
+          expr: jobset_replicatedjob_ready_replicas{namespace="mlops-training"} < jobset_replicatedjob_replicas{namespace="mlops-training"}
+          for: 15m
+          labels:
+            severity: warning
+            team: ml-training
+          annotations:
+            summary: Elastic JobSet has fewer ready replicas than requested.
+            runbook_url: docs/kueue-elastic-workloads.md
