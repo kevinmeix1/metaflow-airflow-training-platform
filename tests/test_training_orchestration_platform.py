@@ -19,6 +19,7 @@ from training_orchestration_platform.network_security import build_network_secur
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.orchestration_scorecard import build_orchestration_scorecard
 from training_orchestration_platform.policy_audit import audit_platform_policy
+from training_orchestration_platform.performance_budget import build_performance_budget_report
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.slo import build_slo_report
 from training_orchestration_platform.supply_chain import build_supply_chain_evidence
@@ -74,6 +75,25 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["ScaledJob", "kafka", "lagThreshold", "limitToPartitionsWithLag", "demand-training-queue"]:
             self.assertIn(expected, autoscaling)
+
+    def test_performance_budget_report_and_prometheus_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "performance-budget-policy.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            report = build_performance_budget_report(root)
+            names = {check["name"] for check in report["checks"]}
+
+            self.assertTrue(result["performance_budget"]["passed"])
+            self.assertTrue(report["passed"])
+            self.assertIn("successful_partitions", names)
+            self.assertIn("backfill_wave_count", names)
+            self.assertIn("failed_partition_recovery_minutes", names)
+            self.assertTrue((root / "reports" / "performance_budget.json").exists())
+            self.assertIn("PrometheusRule", manifest)
+            self.assertIn("histogram_quantile", manifest)
+            self.assertIn("DemandTrainingQueueBudgetExceeded", manifest)
 
     def test_admission_policies_and_policy_audit_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -232,7 +252,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "performance_budget.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -299,6 +319,9 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "governance_evidence_bundle.json",
                 "slo_error_budget.json",
                 "accelerator_capacity_plan.json",
+                "performance_budget.json",
+                "resource_optimization.json",
+                "network_security.json",
                 "orchestration_scorecard.json",
                 "supply_chain_evidence.json",
                 "cloud_migration_plan.json",
@@ -337,6 +360,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "training_orchestration_dashboard.html").exists())
             self.assertTrue((root / "reports" / "index.html").exists())
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
+            self.assertTrue((root / "reports" / "performance_budget.json").exists())
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
             self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())
 

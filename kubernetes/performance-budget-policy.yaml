@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demand-training-performance-budget
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: daily-demand-training
+    app.kubernetes.io/component: performance-budget
+data:
+  successful_partitions: "5"
+  idempotent_skips: "3"
+  backfill_wave_count: "6"
+  max_wave_cpu: "6"
+  airflow_queue_wait_p95_seconds: "75"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demand-training-performance-budget
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/name: daily-demand-training
+    app.kubernetes.io/component: performance-budget
+spec:
+  groups:
+    - name: demand-training.performance-budget
+      rules:
+        - alert: DemandTrainingQueueBudgetExceeded
+          expr: |
+            histogram_quantile(0.95, sum(rate(airflow_task_queued_duration_seconds_bucket{pool="metaflow_training_pool"}[15m])) by (le)) > 75
+          for: 15m
+          labels:
+            severity: warning
+            owner: airflow
+          annotations:
+            summary: Training queue wait p95 is over the backfill budget.
+            runbook_url: docs/performance-budgets.md
+        - alert: DemandTrainingBacklogBudgetExceeded
+          expr: |
+            sum(keda_scaledjob_queue_length{scaledjob="demand-training-partition-workers"}) > 20
+          for: 20m
+          labels:
+            severity: warning
+            owner: ml-platform
+          annotations:
+            summary: Partition backlog is above the planned Kueue admission budget.
+            runbook_url: docs/performance-budgets.md

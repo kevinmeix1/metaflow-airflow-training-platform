@@ -24,6 +24,9 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Supply Chain Evidence", "supply_chain_evidence.json", "Artifact hashes, GitHub attestations, SLSA provenance, and Sigstore policy controls."),
         ("Cloud Migration Plan", "cloud_migration_plan.json", "Migration notes for MWAA, EKS, Karpenter, MLflow, and managed data platforms."),
         ("Accelerator Plan", "accelerator_capacity_plan.json", "GPU, DRA, Kueue, MIG, and time-slicing plan for accelerator-aware training."),
+        ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
+        ("Resource Optimization", "resource_optimization.json", "Requests, limits, VPA, HPA, and Kueue recommendations for partitioned training."),
+        ("Network Security", "network_security.json", "mTLS, network policy, and Airflow-to-storage access topology for training workloads."),
         ("Orchestration Scorecard", "orchestration_scorecard.json", "Automated scan of advanced Airflow, Kubernetes, lineage, and security controls."),
     ]
     card_html = "\n".join(
