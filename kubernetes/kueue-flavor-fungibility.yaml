@@ -1,0 +1,151 @@
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-on-demand
+spec:
+  nodeLabels:
+    workload-class: training-on-demand
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-spot
+spec:
+  nodeLabels:
+    workload-class: training-spot
+  tolerations:
+    - key: spot
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: gpu-l4-reserved
+spec:
+  nodeLabels:
+    accelerator: nvidia-l4
+    capacity-class: reserved
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: gpu-l4-spot
+spec:
+  nodeLabels:
+    accelerator: nvidia-l4
+    capacity-class: spot
+  tolerations:
+    - key: spot
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: production-backfill-flavor-queue
+spec:
+  namespaceSelector:
+    matchLabels:
+      platform.mlops.dev/tenant: forecasting-prod
+  queueingStrategy: BestEffortFIFO
+  flavorFungibility:
+    whenCanBorrow: TryNextFlavor
+    whenCanPreempt: TryNextFlavor
+    preference: BorrowingOverPreemption
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-on-demand
+          resources:
+            - name: cpu
+              nominalQuota: 28
+              borrowingLimit: 8
+            - name: memory
+              nominalQuota: 112Gi
+              borrowingLimit: 32Gi
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 10
+              borrowingLimit: 12
+            - name: memory
+              nominalQuota: 40Gi
+              borrowingLimit: 48Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: quality-replay-flavor-queue
+spec:
+  namespaceSelector:
+    matchLabels:
+      platform.mlops.dev/tenant: data-quality
+  queueingStrategy: BestEffortFIFO
+  flavorFungibility:
+    whenCanBorrow: TryNextFlavor
+    whenCanPreempt: TryNextFlavor
+    preference: BorrowingOverPreemption
+  resourceGroups:
+    - coveredResources: ["cpu", "memory"]
+      flavors:
+        - name: cpu-spot
+          resources:
+            - name: cpu
+              nominalQuota: 14
+              borrowingLimit: 10
+            - name: memory
+              nominalQuota: 56Gi
+              borrowingLimit: 32Gi
+        - name: cpu-on-demand
+          resources:
+            - name: cpu
+              nominalQuota: 4
+              borrowingLimit: 3
+            - name: memory
+              nominalQuota: 16Gi
+              borrowingLimit: 12Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: hpo-sweeps-flavor-queue
+spec:
+  namespaceSelector:
+    matchLabels:
+      platform.mlops.dev/tenant: feature-exploration
+  queueingStrategy: BestEffortFIFO
+  flavorFungibility:
+    whenCanBorrow: TryNextFlavor
+    whenCanPreempt: TryNextFlavor
+    preference: BorrowingOverPreemption
+  resourceGroups:
+    - coveredResources: ["nvidia.com/gpu"]
+      flavors:
+        - name: gpu-l4-spot
+          resources:
+            - name: nvidia.com/gpu
+              nominalQuota: 4
+              borrowingLimit: 2
+        - name: gpu-l4-reserved
+          resources:
+            - name: nvidia.com/gpu
+              nominalQuota: 1
+              borrowingLimit: 1
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: hpo-sweeps
+  namespace: mlops-training-exploration
+spec:
+  clusterQueue: hpo-sweeps-flavor-queue

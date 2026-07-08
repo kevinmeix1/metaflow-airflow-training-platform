@@ -137,6 +137,8 @@ For Airflow 3 AssetWatchers, `BaseEventTrigger` contracts, shared-stream polling
 
 For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes telemetry attributes with row redaction, see [semantic telemetry contract](docs/semantic-telemetry.md).
 
+For Kueue ResourceFlavor fallback, `TryNextFlavor` behavior, and training spot/on-demand/GPU trade-offs, see [Kueue flavor fungibility](docs/kueue-flavor-fungibility.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).
