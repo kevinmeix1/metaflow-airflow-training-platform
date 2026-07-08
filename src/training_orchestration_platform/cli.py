@@ -26,6 +26,7 @@ from .orchestrator import backfill, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
+from .provisioning_admission import build_provisioning_admission_plan
 from .queue_simulator import build_queue_simulation
 from .release_admission import build_release_admission_decision
 from .resource_optimizer import build_resource_optimization_report
@@ -68,6 +69,7 @@ def demo(output: str | Path) -> dict:
     cost_observability = build_cost_observability_report(root)
     elastic_workload = build_elastic_workload_plan(root)
     indexed_job_resilience = build_indexed_job_resilience_plan(root)
+    provisioning_admission = build_provisioning_admission_plan(root)
     tenancy = build_tenancy_report(root)
     identity_access = build_identity_access_report(root)
     performance_budget = build_performance_budget_report(root)
@@ -114,6 +116,7 @@ def demo(output: str | Path) -> dict:
         "cost_observability": cost_observability,
         "elastic_workload": elastic_workload,
         "indexed_job_resilience": indexed_job_resilience,
+        "provisioning_admission": provisioning_admission,
         "tenancy": tenancy,
         "identity_access": identity_access,
         "performance_budget": performance_budget,
@@ -205,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
     elastic_parser.add_argument("--output", default=".local")
     indexed_job_parser = sub.add_parser("indexed-job-resilience")
     indexed_job_parser.add_argument("--output", default=".local")
+    provisioning_parser = sub.add_parser("provisioning-admission")
+    provisioning_parser.add_argument("--output", default=".local")
     tenancy_parser = sub.add_parser("tenancy-report")
     tenancy_parser.add_argument("--output", default=".local")
     identity_parser = sub.add_parser("identity-report")
@@ -270,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_elastic_workload_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "indexed-job-resilience":
         print(json.dumps(build_indexed_job_resilience_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "provisioning-admission":
+        print(json.dumps(build_provisioning_admission_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "tenancy-report":
         print(json.dumps(build_tenancy_report(args.output), indent=2, sort_keys=True))
     elif args.command == "identity-report":

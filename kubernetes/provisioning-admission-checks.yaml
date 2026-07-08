@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-provisioning-admission-runbook
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    platform.openai.com/component: provisioning-admission
+data:
+  admissionFlow: "quota reservation -> ProvisioningRequest -> Cluster Autoscaler capacity signal -> workload admission"
+  fallbackPolicy: "If ProvisioningRequest fails twice, release quota and route recovery to demand-training-queue with lower parallelism."
+  owner: "ml-platform-capacity"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: gpu-a100-provisioned
+spec:
+  nodeLabels:
+    accelerator: nvidia-a100
+    capacity.mlops.dev/provisioned: "true"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: demand-gpu-provisioned-queue
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: gpu-a100-provisioned
+          resources:
+            - name: cpu
+              nominalQuota: 128
+              borrowingLimit: 32
+            - name: memory
+              nominalQuota: 512Gi
+              borrowingLimit: 128Gi
+            - name: nvidia.com/gpu
+              nominalQuota: 16
+              borrowingLimit: 4
+  admissionChecksStrategy:
+    admissionChecks:
+      - name: training-provisioning-capacity
+        onFlavors: ["gpu-a100-provisioned"]
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: Any
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: demand-gpu-provisioned-queue
+  namespace: ml-training
+spec:
+  clusterQueue: demand-gpu-provisioned-queue
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: training-provisioning-capacity
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: training-provisioning-config
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ProvisioningRequestConfig
+metadata:
+  name: training-provisioning-config
+spec:
+  provisioningClassName: check-capacity.autoscaling.x-k8s.io
+  managedResources:
+    - cpu
+    - memory
+    - nvidia.com/gpu
+  retryStrategy:
+    backoffLimitCount: 2
+    backoffBaseSeconds: 60
+    backoffMaxSeconds: 1800
+  podSetMergePolicy: IdenticalWorkloadSchedulingRequirements
+  podSetUpdates:
+    nodeSelector:
+      - key: autoscaling.cloud-provider.com/provisioning-request
+        valueFromProvisioningClassDetail: RequestKey
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: provisioned-demand-training-
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    app.kubernetes.io/component: provisioned-training-wave
+    kueue.x-k8s.io/queue-name: demand-gpu-provisioned-queue
+    kueue.x-k8s.io/priority-class: backfill-critical
+  annotations:
+    provreq.kueue.x-k8s.io/maxRunDurationSeconds: "7200"
+    provreq.kueue.x-k8s.io/ValidUntilSeconds: "900"
+spec:
+  parallelism: 8
+  completions: 8
+  completionMode: Indexed
+  backoffLimitPerIndex: 1
+  maxFailedIndexes: 1
+  template:
+    spec:
+      serviceAccountName: demand-training-runner
+      restartPolicy: Never
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: partition-trainer
+          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+          command: ["python", "-m", "training_orchestration_platform", "run", "--output", "/workspace", "--date", "2026-06-07"]
+          resources:
+            requests:
+              cpu: "4"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-provisioning-admission-alerts
+  namespace: ml-training
+  labels:
+    app.kubernetes.io/name: metaflow-airflow-training-platform
+    prometheus: platform
+spec:
+  groups:
+    - name: training.provisioning-admission
+      rules:
+        - alert: TrainingProvisioningAdmissionPendingTooLong
+          expr: max_over_time(kueue_admission_check_state{namespace="ml-training",admission_check="training-provisioning-capacity",state="Pending"}[20m]) > 0
+          for: 20m
+          labels:
+            severity: warning
+          annotations:
+            summary: Training ProvisioningRequest admission check is pending longer than the capacity SLO.
+            runbook: "Inspect ProvisioningRequest status and Cluster Autoscaler inventory before increasing Airflow backfill concurrency."
+        - alert: TrainingProvisioningRequestRetriesExhausted
+          expr: increase(kueue_provisioning_request_retries_total{namespace="ml-training",admission_check="training-provisioning-capacity"}[30m]) >= 2
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Training ProvisioningRequest exhausted retry budget.
+            runbook: "Release quota, requeue failed partitions with smaller resource requests, and route to the fallback queue if needed."
+        - alert: TrainingProvisioningBookingExpired
+          expr: kueue_provisioning_request_condition{namespace="ml-training",condition="BookingExpired",status="true"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Provisioned capacity booking expired before the training wave consumed it.
+            runbook: "Run a small smoke wave before resuming large distributed backfills."

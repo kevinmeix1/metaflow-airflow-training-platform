@@ -33,6 +33,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Cost Observability", "cost_observability_report.json", "OpenCost partition cost, backfill budgets, GPU training spend, retry-storm cost, and PVC artifact allocation."),
         ("Elastic Workloads", "elastic_workload_plan.json", "Kueue Workload Slices, JobSet elastic backfills, replacement slices, and quota-safe recovery."),
         ("Indexed Job Resilience", "indexed_job_resilience_plan.json", "Kubernetes Indexed Jobs, per-index retries, success policy, pod failure policy, and bounded Airflow backfills."),
+        ("Provisioning Admission", "provisioning_admission_plan.json", "Kueue ProvisioningRequest capacity checks, autoscaler retry strategy, node targeting, and fallback queueing."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),
