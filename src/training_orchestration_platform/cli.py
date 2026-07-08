@@ -8,6 +8,7 @@ from .accelerator_plan import build_accelerator_capacity_plan
 from .admin_access_diagnostics import build_admin_access_diagnostic_plan
 from .advanced_device_sharing import build_advanced_device_sharing_plan
 from .artifact_index import render_artifact_index
+from .asset_partitioning import build_asset_partitioning_plan
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
@@ -88,6 +89,7 @@ def demo(output: str | Path) -> dict:
     provisioning_admission = build_provisioning_admission_plan(root)
     multikueue_dispatch = build_multikueue_dispatch_plan(root)
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
+    asset_partitioning = build_asset_partitioning_plan(root)
     event_driven_assets = build_event_driven_assets_plan(root)
     pod_resource_envelopes = build_pod_resource_envelope_plan(root)
     cohort_fair_sharing = build_cohort_fair_sharing_plan(root)
@@ -147,6 +149,7 @@ def demo(output: str | Path) -> dict:
         "provisioning_admission": provisioning_admission,
         "multikueue_dispatch": multikueue_dispatch,
         "dag_bundle_versioning": dag_bundle_versioning,
+        "asset_partitioning": asset_partitioning,
         "event_driven_assets": event_driven_assets,
         "pod_resource_envelopes": pod_resource_envelopes,
         "cohort_fair_sharing": cohort_fair_sharing,
@@ -258,6 +261,8 @@ def main(argv: list[str] | None = None) -> int:
     multikueue_parser.add_argument("--output", default=".local")
     dag_bundle_parser = sub.add_parser("dag-bundle-plan")
     dag_bundle_parser.add_argument("--output", default=".local")
+    asset_partitioning_parser = sub.add_parser("asset-partitioning-plan")
+    asset_partitioning_parser.add_argument("--output", default=".local")
     event_assets_parser = sub.add_parser("event-driven-assets")
     event_assets_parser.add_argument("--output", default=".local")
     pod_resource_parser = sub.add_parser("pod-resource-envelopes")
@@ -349,6 +354,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_multikueue_dispatch_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "dag-bundle-plan":
         print(json.dumps(build_dag_bundle_versioning_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "asset-partitioning-plan":
+        print(json.dumps(build_asset_partitioning_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "event-driven-assets":
         print(json.dumps(build_event_driven_assets_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "pod-resource-envelopes":

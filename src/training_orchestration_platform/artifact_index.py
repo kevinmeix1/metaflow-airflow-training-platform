@@ -41,6 +41,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("MultiKueue Dispatch", "multikueue_dispatch_plan.json", "Kueue MultiKueue manager and worker dispatch, quota alignment, status sync, and worker failover evidence."),
         ("OCI Artifact Volumes", "oci_artifact_volume_plan.json", "Kubernetes image-volume training artifacts, digest-pinned bundles, read-only mounts, warmups, and fallback controls."),
         ("DAG Bundle Versioning", "dag_bundle_versioning_plan.json", "Airflow 3 GitDagBundle versioning for partition replay, scheduler-managed backfills, and Metaflow lineage."),
+        ("Asset Partitioning", "asset_partitioning_plan.json", "Airflow 3.2 partitioned assets for dataset snapshots, Metaflow runs, evaluation gates, and model-registration lineage."),
         ("Event-Driven Assets", "event_driven_assets_plan.json", "Airflow 3 AssetWatchers for raw sales arrival, partition manifests, failed replay, and candidate model events."),
         ("Pod Resource Envelopes", "pod_resource_envelope_plan.json", "Kubernetes pod-level resources, scheduling gates, manifest readiness, artifact-volume readiness, and scheduler-churn observability."),
         ("Cohort Fair Sharing", "cohort_fair_sharing_plan.json", "Kueue Fair Sharing, Admission Fair Sharing, training queue weights, borrowing/lending limits, and preemption guardrails."),

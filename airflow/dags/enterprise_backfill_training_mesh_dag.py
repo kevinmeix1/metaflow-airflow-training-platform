@@ -9,7 +9,7 @@ try:
     from airflow.operators.empty import EmptyOperator
     from airflow.operators.python import BranchPythonOperator
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-    from airflow.sdk import Asset
+    from airflow.sdk import Asset, CronPartitionTimetable, DAG, PartitionedAssetTimetable, StartOfHourMapper
     from airflow.utils.trigger_rule import TriggerRule
 except Exception:
     AIRFLOW_AVAILABLE = False
@@ -59,6 +59,10 @@ def pod(task_id: str, command: str, *, pool: str = "training_pool", priority_wei
 if AIRFLOW_AVAILABLE:
     RAW_SALES = Asset("lakehouse://retail/raw_sales")
     PARTITION_MANIFESTS = Asset("lakehouse://retail/manifests/daily_sales")
+    TRAINING_DATASET = Asset("lakehouse://retail/daily-demand/dataset")
+    OCI_ARTIFACTS = Asset("oci://ghcr.io/kevinmeix1/demand-training-dataset@sha256")
+    METAFLOW_RUNS = Asset("metaflow://flows/demand-training/run")
+    EVALUATION_METRICS = Asset("mlflow://experiments/daily-demand/evaluation")
     MODEL_REGISTRY = Asset("mlflow://models/daily-demand-forecaster")
     LINEAGE = Asset("openlineage://retail/daily-demand")
 
@@ -175,3 +179,66 @@ if AIRFLOW_AVAILABLE:
         select_champion >> quarantine >> publish_lineage
 
     enterprise_backfill_training_mesh()
+
+    with DAG(
+        dag_id="partitioned_demand_training_manifest",
+        schedule=CronPartitionTimetable("0 2 * * *", timezone="UTC"),
+        catchup=True,
+        max_active_runs=2,
+        tags=["airflow-3.2", "asset-partitioning", "metaflow", "dataset"],
+    ):
+        @task(outlets=[PARTITION_MANIFESTS, TRAINING_DATASET])
+        def materialize_training_partition(dag_run=None) -> dict[str, str | None]:
+            partition_key = dag_run.partition_key if dag_run else None
+            return {
+                "partition_key": partition_key,
+                "raw_asset": RAW_SALES.uri,
+                "manifest_asset": PARTITION_MANIFESTS.uri,
+                "dataset_asset": TRAINING_DATASET.uri,
+            }
+
+        materialize_training_partition()
+
+    with DAG(
+        dag_id="partitioned_metaflow_training_grid",
+        schedule=PartitionedAssetTimetable(
+            assets=RAW_SALES & PARTITION_MANIFESTS & OCI_ARTIFACTS,
+            default_partition_mapper=StartOfHourMapper(),
+        ),
+        catchup=True,
+        max_active_runs=2,
+        tags=["airflow-3.2", "partitioned-backfill", "metaflow", "training-grid"],
+    ):
+        @task(outlets=[METAFLOW_RUNS, EVALUATION_METRICS])
+        def launch_training_partition(dag_run=None) -> dict[str, str | None]:
+            partition_key = dag_run.partition_key if dag_run else None
+            return {
+                "partition_key": partition_key,
+                "metaflow_asset": METAFLOW_RUNS.uri,
+                "evaluation_asset": EVALUATION_METRICS.uri,
+                "artifact_asset": OCI_ARTIFACTS.uri,
+            }
+
+        launch_training_partition()
+
+    with DAG(
+        dag_id="partitioned_model_registration_gate",
+        schedule=PartitionedAssetTimetable(
+            assets=METAFLOW_RUNS & EVALUATION_METRICS,
+            default_partition_mapper=StartOfHourMapper(),
+        ),
+        catchup=False,
+        max_active_runs=1,
+        tags=["airflow-3.2", "partitioned-backfill", "mlflow", "promotion"],
+    ):
+        @task(outlets=[MODEL_REGISTRY, LINEAGE])
+        def evaluate_candidate_partition(dag_run=None) -> dict[str, str | None]:
+            partition_key = dag_run.partition_key if dag_run else None
+            return {
+                "partition_key": partition_key,
+                "model_asset": MODEL_REGISTRY.uri,
+                "lineage_asset": LINEAGE.uri,
+                "evidence": "aligned dataset snapshot, Metaflow run, evaluation metrics, and model candidate partition",
+            }
+
+        evaluate_candidate_partition()
