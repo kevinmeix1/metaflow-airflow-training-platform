@@ -23,7 +23,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("SLO Error Budget", "slo_error_budget.json", "Training freshness, success-rate, and queue-health SLO burn-rate evidence."),
         ("Supply Chain Evidence", "supply_chain_evidence.json", "Artifact hashes, GitHub attestations, SLSA provenance, and Sigstore policy controls."),
         ("Cloud Migration Plan", "cloud_migration_plan.json", "Migration notes for MWAA, EKS, Karpenter, MLflow, and managed data platforms."),
-        ("Capacity Plan", "backfill_capacity_plan.json", "Backfill waves, priority classes, and compute envelopes for training workload admission."),
+        ("Accelerator Plan", "accelerator_capacity_plan.json", "GPU, DRA, Kueue, MIG, and time-slicing plan for accelerator-aware training."),
         ("Orchestration Scorecard", "orchestration_scorecard.json", "Automated scan of advanced Airflow, Kubernetes, lineage, and security controls."),
     ]
     card_html = "\n".join(

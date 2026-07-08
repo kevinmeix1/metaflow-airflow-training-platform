@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .accelerator_plan import build_accelerator_capacity_plan
 from .artifact_index import render_artifact_index
 from .capacity_planner import build_backfill_plan
 from .chaos import run_chaos_drill
@@ -39,6 +40,11 @@ def demo(output: str | Path) -> dict:
     governance_bundle = build_governance_bundle(root)
     slo_error_budget = build_slo_report(root)
     cloud_migration = build_cloud_migration_plan(root)
+    accelerator_capacity = build_accelerator_capacity_plan(
+        root,
+        project="Metaflow Airflow Training Platform",
+        primary_workload="partitioned training backfills and feature-heavy model families",
+    )
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     artifact_index = render_artifact_index(
         root,
@@ -70,6 +76,7 @@ def demo(output: str | Path) -> dict:
         "governance_bundle": governance_bundle,
         "slo_error_budget": slo_error_budget,
         "cloud_migration": cloud_migration,
+        "accelerator_capacity": accelerator_capacity,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,
@@ -136,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
     supply_chain_parser.add_argument("--output", default=".local")
     scorecard_parser = sub.add_parser("orchestration-scorecard")
     scorecard_parser.add_argument("--output", default=".local")
+    accelerator_parser = sub.add_parser("accelerator-plan")
+    accelerator_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
         print(json.dumps(demo(args.output), indent=2, sort_keys=True))
@@ -171,4 +180,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_supply_chain_evidence(args.output, project="Metaflow Airflow Training Platform", artifact_name="training-orchestration-demo-artifacts", workflow="Training Orchestration CI", namespace="mlops-training"), indent=2, sort_keys=True))
     elif args.command == "orchestration-scorecard":
         print(json.dumps(build_orchestration_scorecard(args.output, project="Metaflow Airflow Training Platform"), indent=2, sort_keys=True))
+    elif args.command == "accelerator-plan":
+        print(json.dumps(build_accelerator_capacity_plan(args.output, project="Metaflow Airflow Training Platform", primary_workload="partitioned training backfills and feature-heavy model families"), indent=2, sort_keys=True))
     return 0
