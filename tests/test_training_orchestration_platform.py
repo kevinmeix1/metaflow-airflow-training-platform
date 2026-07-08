@@ -169,7 +169,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("indexed_backfill", passed)
             self.assertIn("event_driven_scaling", passed)
             self.assertIn("immutable_image_digest", passed)
-            self.assertIn("no_latest_image_tags", report["failed_checks"])
+            self.assertIn("no_latest_image_tags", passed)
 
     def test_trace_report_and_otel_collector_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]

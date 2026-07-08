@@ -117,7 +117,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: partition-trainer
-          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:2026.07.0
           command: ["python", "-m", "training_orchestration_platform", "run", "--output", "/workspace", "--date", "2026-06-07"]
           resources:
             requests:

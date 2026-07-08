@@ -27,7 +27,7 @@ spec:
         restartPolicy: Never
         containers:
           - name: partition-worker
-            image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+            image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:2026.07.0
             command: ["bash", "-lc"]
             args:
               - "python -m training_orchestration_platform run --date ${PARTITION_DATE:-2026-06-01}"

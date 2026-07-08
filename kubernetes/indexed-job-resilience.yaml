@@ -58,7 +58,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: partition-trainer
-          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:latest
+          image: ghcr.io/kevinmeix1/metaflow-airflow-training-platform:2026.07.0
           command: ["bash", "-lc"]
           args:
             - >-
