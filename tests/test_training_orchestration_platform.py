@@ -31,6 +31,7 @@ from training_orchestration_platform.inference_gateway import build_inference_ga
 from training_orchestration_platform.io import read_csv, read_json, read_jsonl, write_json
 from training_orchestration_platform.kuberay_capacity import build_kuberay_capacity_plan
 from training_orchestration_platform.model import evaluate_gates
+from training_orchestration_platform.multi_team_readiness import build_multi_team_readiness_plan
 from training_orchestration_platform.multikueue_dispatch import build_multikueue_dispatch_plan
 from training_orchestration_platform.network_security import build_network_security_report
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
@@ -329,7 +330,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -612,6 +613,31 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["CronPartitionTimetable", "PartitionedAssetTimetable", "StartOfHourMapper", "dag_run.partition_key", "partitioned_model_registration_gate"]:
             self.assertIn(expected, dag)
 
+    def test_multi_team_readiness_plan_and_airflow_config_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        docs = (repo / "docs" / "airflow-multi-team-readiness.md").read_text(encoding="utf-8")
+        config = (repo / "airflow" / "dag-bundle-config.ini").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_multi_team_readiness_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "prepare_airflow_multi_team_training_isolation")
+            self.assertEqual(report["team"]["team_name"], "ml-training")
+            self.assertEqual(report["configuration"]["AIRFLOW__CORE__MULTI_TEAM"], "True")
+            self.assertEqual(report["asset_filtering_contract"]["class"], "AssetAccessControl")
+            self.assertTrue((root / "reports" / "multi_team_readiness_plan.json").exists())
+        for expected in [
+            "Airflow Multi-Team Readiness",
+            "team_name",
+            "AssetAccessControl",
+            "airflow triggerer --team-name",
+            "AIRFLOW_VAR__ML_TRAINING",
+        ]:
+            self.assertIn(expected, docs)
+        for expected in ["team_name", "ml-training", "multi_team = True", "LocalExecutor;ml-training=KubernetesExecutor"]:
+            self.assertIn(expected, config)
+
     def test_event_driven_assets_plan_and_docs_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         docs = (repo / "docs" / "event-driven-assets.md").read_text(encoding="utf-8")
@@ -820,6 +846,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("oci_image_volume_artifacts", names)
             self.assertIn("airflow_dag_bundle_versioning", names)
             self.assertIn("airflow_asset_partitioning", names)
+            self.assertIn("airflow_multi_team_readiness", names)
             self.assertIn("airflow_event_driven_assets", names)
             self.assertIn("pod_resource_envelopes", names)
             self.assertIn("kueue_cohort_fair_sharing", names)
@@ -886,6 +913,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "oci_artifact_volume_plan.json",
                 "dag_bundle_versioning_plan.json",
                 "asset_partitioning_plan.json",
+                "multi_team_readiness_plan.json",
                 "event_driven_assets_plan.json",
                 "pod_resource_envelope_plan.json",
                 "cohort_fair_sharing_plan.json",
@@ -955,6 +983,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "oci_artifact_volume_plan.json").exists())
             self.assertTrue((root / "reports" / "dag_bundle_versioning_plan.json").exists())
             self.assertTrue((root / "reports" / "asset_partitioning_plan.json").exists())
+            self.assertTrue((root / "reports" / "multi_team_readiness_plan.json").exists())
             self.assertTrue((root / "reports" / "event_driven_assets_plan.json").exists())
             self.assertTrue((root / "reports" / "pod_resource_envelope_plan.json").exists())
             self.assertTrue((root / "reports" / "cohort_fair_sharing_plan.json").exists())

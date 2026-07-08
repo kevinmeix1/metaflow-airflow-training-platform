@@ -29,6 +29,7 @@ from .indexed_job_resilience import build_indexed_job_resilience_plan
 from .inplace_resize import build_inplace_resize_plan
 from .inference_gateway import build_inference_gateway_plan
 from .kuberay_capacity import build_kuberay_capacity_plan
+from .multi_team_readiness import build_multi_team_readiness_plan
 from .multikueue_dispatch import build_multikueue_dispatch_plan
 from .network_security import build_network_security_report
 from .orchestrator import backfill, run_partition
@@ -90,6 +91,7 @@ def demo(output: str | Path) -> dict:
     multikueue_dispatch = build_multikueue_dispatch_plan(root)
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
     asset_partitioning = build_asset_partitioning_plan(root)
+    multi_team_readiness = build_multi_team_readiness_plan(root)
     event_driven_assets = build_event_driven_assets_plan(root)
     pod_resource_envelopes = build_pod_resource_envelope_plan(root)
     cohort_fair_sharing = build_cohort_fair_sharing_plan(root)
@@ -150,6 +152,7 @@ def demo(output: str | Path) -> dict:
         "multikueue_dispatch": multikueue_dispatch,
         "dag_bundle_versioning": dag_bundle_versioning,
         "asset_partitioning": asset_partitioning,
+        "multi_team_readiness": multi_team_readiness,
         "event_driven_assets": event_driven_assets,
         "pod_resource_envelopes": pod_resource_envelopes,
         "cohort_fair_sharing": cohort_fair_sharing,
@@ -263,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
     dag_bundle_parser.add_argument("--output", default=".local")
     asset_partitioning_parser = sub.add_parser("asset-partitioning-plan")
     asset_partitioning_parser.add_argument("--output", default=".local")
+    multi_team_parser = sub.add_parser("multi-team-readiness")
+    multi_team_parser.add_argument("--output", default=".local")
     event_assets_parser = sub.add_parser("event-driven-assets")
     event_assets_parser.add_argument("--output", default=".local")
     pod_resource_parser = sub.add_parser("pod-resource-envelopes")
@@ -356,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_dag_bundle_versioning_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "asset-partitioning-plan":
         print(json.dumps(build_asset_partitioning_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "multi-team-readiness":
+        print(json.dumps(build_multi_team_readiness_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "event-driven-assets":
         print(json.dumps(build_event_driven_assets_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "pod-resource-envelopes":

@@ -141,6 +141,8 @@ For Airflow 3 GitDagBundle configuration, DAG versioning, scheduler-managed back
 
 For Airflow 3.2 asset partitioning across dataset snapshots, Metaflow child flows, evaluation gates, and model-registration backfills, see [Airflow asset partitioning](docs/airflow-asset-partitioning.md).
 
+For Airflow multi-team preview readiness with training-owned DAG Bundles, team-scoped pools/secrets, team triggerers, and asset-event filtering, see [Airflow multi-team readiness](docs/airflow-multi-team-readiness.md).
+
 For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
 
 For Airflow 3 AssetWatchers, `BaseEventTrigger` contracts, shared-stream polling, `AssetAlias`, and conditional training asset expressions, see [event-driven assets](docs/event-driven-assets.md).
