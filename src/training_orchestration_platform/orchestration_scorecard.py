@@ -69,6 +69,7 @@ def build_orchestration_scorecard(
         ("pod_resource_envelopes", _present(content, "pod_resource_envelope_plan.json", "PodLevelResources", "schedulingGates") and _present(content, "scheduler_pending_pods", "PodSchedulingReadiness"), "Kubernetes pod-level resource envelopes and scheduling gates avoid training backfill scheduler churn before prerequisites are ready"),
         ("kueue_cohort_fair_sharing", _present(content, "cohort_fair_sharing_plan.json", "AdmissionFairSharing", "preemptionStrategies") and _present(content, "borrowingLimit", "lendingLimit", "fairSharing"), "Kueue Fair Sharing and Admission Fair Sharing protect production backfills while exploration borrows idle quota"),
         ("kueue_flavor_fungibility", _present(content, "flavor_fungibility_plan.json", "flavorFungibility", "TryNextFlavor") and _present(content, "BorrowingOverPreemption", "ResourceFlavor"), "Kueue ResourceFlavor fallback avoids premature borrowing or preemption across production, replay, and HPO pools"),
+        ("kueue_pending_workload_visibility", _present(content, "pending_workload_visibility_plan.json", "VisibilityOnDemand", "pendingworkloads") and _present(content, "kueue_admission_wait_time_seconds", "kueue_cluster_queue_resource_pending"), "Kueue VisibilityOnDemand exposes pending backfill, replay, and HPO workloads before Airflow widens fanout"),
         ("event_driven_scaling", _present(content, "ScaledObject", "ScaledJob"), "KEDA ScaledObjects or ScaledJobs react to operational backlog"),
         ("horizontal_autoscaling", "HorizontalPodAutoscaler" in content, "HPA rules keep workers and services elastic"),
         ("opentelemetry", _present(content, "opentelemetry-collector", "OpenTelemetry"), "OTel collector config captures runtime traces and metrics"),
@@ -109,6 +110,7 @@ def build_orchestration_scorecard(
             "Kubernetes PodLevelResources and Pod Scheduling Readiness gates for scheduler-efficient training backfills",
             "Kueue Fair Sharing and Admission Fair Sharing for training cohort scheduling fairness",
             "Kueue FlavorFungibility for ResourceFlavor fallback before borrowing or preempting partitioned training capacity",
+            "Kueue VisibilityOnDemand pending workload APIs for backfill, schema replay, failed-partition recovery, and HPO triage",
             "GitHub artifact attestations, SLSA provenance, and Sigstore policy-controller for supply-chain integrity",
         ],
         "next_actions": [

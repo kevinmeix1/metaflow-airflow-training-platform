@@ -139,6 +139,8 @@ For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes tel
 
 For Kueue ResourceFlavor fallback, `TryNextFlavor` behavior, and training spot/on-demand/GPU trade-offs, see [Kueue flavor fungibility](docs/kueue-flavor-fungibility.md).
 
+For Kueue `VisibilityOnDemand`, pending workload API queries, backfill queue triage, and admission-wait alerts, see [Kueue pending workload visibility](docs/kueue-pending-workload-visibility.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).

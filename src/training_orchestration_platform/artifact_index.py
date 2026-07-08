@@ -41,6 +41,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Pod Resource Envelopes", "pod_resource_envelope_plan.json", "Kubernetes pod-level resources, scheduling gates, manifest readiness, artifact-volume readiness, and scheduler-churn observability."),
         ("Cohort Fair Sharing", "cohort_fair_sharing_plan.json", "Kueue Fair Sharing, Admission Fair Sharing, training queue weights, borrowing/lending limits, and preemption guardrails."),
         ("Flavor Fungibility", "flavor_fungibility_plan.json", "Kueue ResourceFlavor fallback, TryNextFlavor policies, explicit borrowing/preemption preference, and training pool trade-offs."),
+        ("Pending Workload Visibility", "pending_workload_visibility_plan.json", "Kueue VisibilityOnDemand, raw pendingworkloads API paths, backfill queue triage, and admission-wait alerts."),
         ("Performance Budget", "performance_budget.json", "Backfill throughput, wave packing, queue wait, and recovery gates with owner actions."),
         ("Queue Simulation", "queue_simulation.json", "Kueue quota, indexed backfill priority, GPU, Airflow pool, and preemption simulation."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),

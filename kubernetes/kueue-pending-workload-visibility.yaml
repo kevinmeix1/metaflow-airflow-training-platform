@@ -1,0 +1,62 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kueue-training-pending-workload-visibility
+rules:
+  - apiGroups:
+      - visibility.kueue.x-k8s.io
+    resources:
+      - clusterqueues/pendingworkloads
+      - localqueues/pendingworkloads
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kueue-training-pending-workload-visibility
+subjects:
+  - kind: ServiceAccount
+    name: metaflow-partition-worker
+    namespace: mlops-training-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kueue-training-pending-workload-visibility
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kueue-training-pending-workload-queries
+  namespace: mlops-training-prod
+data:
+  clusterqueue-backfill.jsonpath: "/apis/visibility.kueue.x-k8s.io/v1beta2/clusterqueues/production-backfill-flavor-queue/pendingworkloads"
+  localqueue-backfill.jsonpath: "/apis/visibility.kueue.x-k8s.io/v1beta2/namespaces/mlops-training-prod/localqueues/daily-backfill/pendingworkloads"
+  localqueue-schema-replay.jsonpath: "/apis/visibility.kueue.x-k8s.io/v1beta2/namespaces/mlops-training-quality/localqueues/schema-replay/pendingworkloads"
+  apf-install: "kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.18.2/visibility-apf.yaml"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kueue-training-pending-workload-visibility
+  namespace: mlops-training-prod
+spec:
+  groups:
+    - name: kueue-training-pending-workload-visibility
+      rules:
+        - alert: KueueTrainingBackfillAdmissionWaitHigh
+          expr: histogram_quantile(0.95, sum(rate(kueue_admission_wait_time_seconds_bucket{cluster_queue="production-backfill-flavor-queue"}[10m])) by (le)) > 600
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Production backfill workload is waiting too long for Kueue admission"
+        - alert: KueueTrainingPendingCpuHigh
+          expr: sum(kueue_cluster_queue_resource_pending{cluster_queue=~"production-backfill-flavor-queue|quality-replay-flavor-queue",resource="cpu"}) > 24
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pending training CPU is high across backfill and replay ClusterQueues"
