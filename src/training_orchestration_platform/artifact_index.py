@@ -25,6 +25,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Cloud Migration Plan", "cloud_migration_plan.json", "Migration notes for MWAA, EKS, Karpenter, MLflow, and managed data platforms."),
         ("Accelerator Plan", "accelerator_capacity_plan.json", "GPU, DRA, Kueue, MIG, and time-slicing plan for accelerator-aware training."),
         ("Device Allocation", "device_allocation_plan.json", "DRA ResourceClaim templates, Kueue coupling, partition fallbacks, and device-health guardrails."),
+        ("DRA Resource Health", "resource_health_status_plan.json", "Kubernetes v1.36 ResourceHealthStatus, ResourceClaim device status, device quarantine, and partition replay policy."),
         ("Topology Placement", "topology_placement_plan.json", "Kueue TAS, rack-aware distributed backfills, Airflow HA spread, and wave-splitting fallbacks."),
         ("KubeRay Capacity", "kuberay_capacity_plan.json", "Elastic Ray backfill waves, Kueue queueing, GPU worker bounds, and Metaflow recovery fallbacks."),
         ("Inference Gateway", "inference_gateway_plan.json", "Promoted champion InferencePool, endpoint picker fallback, route priorities, and serving handoff evidence."),

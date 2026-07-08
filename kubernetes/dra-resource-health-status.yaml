@@ -1,0 +1,74 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: training-dra-resource-health-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceclaims"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: training-dra-resource-health-reader
+subjects:
+  - kind: ServiceAccount
+    name: metaflow-partition-worker
+    namespace: ml-training-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: training-dra-resource-health-reader
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-dra-resource-health-queries
+  namespace: mlops-training
+data:
+  backfill-pod-allocated-resources-status: "kubectl get pod demand-training-dra-backfill-3 -n mlops-training -o jsonpath='{.status.containerStatuses[*].allocatedResourcesStatus}'"
+  backfill-resourceclaim-device-status: "kubectl get resourceclaim l4-shared-training-claim -n mlops-training -o jsonpath='{.status.devices}'"
+  hpo-pod-allocated-resources-status: "kubectl get pod hpo-smoke-sweep-1 -n mlops-training -o jsonpath='{.status.containerStatuses[*].allocatedResourcesStatus}'"
+  podresources-cross-check: "scrape kubelet PodResourcesLister DynamicResource claim_name, device_name, and resource_name for Metaflow training pods"
+  backfill-policy: "freeze Airflow mapped fanout when DRA health is Unhealthy or Unknown and replay affected partitions on CPU"
+---
+apiVersion: resource.k8s.io/v1beta2
+kind: DeviceTaintRule
+metadata:
+  name: quarantine-unhealthy-training-l4-device
+spec:
+  deviceSelector:
+    driver: gpu.resource.kubernetes.io
+    deviceClassName: gpu-l4-shared
+  taint:
+    key: gpu.resource.kubernetes.io/unhealthy
+    value: ResourceHealthStatus
+    effect: NoSchedule
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-dra-resource-health-status
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.dra.resource.health
+      rules:
+        - alert: TrainingDRAResourceHealthUnhealthy
+          expr: kube_pod_container_status_allocated_resources_health{namespace=~"mlops-training|ml-training-prod",health=~"Unhealthy|Unknown"} > 0
+          for: 2m
+          labels:
+            severity: critical
+            airflow_action: freeze_mapped_training_fanout
+          annotations:
+            summary: "A Metaflow training DRA device is unhealthy or unknown"
+        - alert: TrainingDRAResourceClaimDeviceStatusMissing
+          expr: kube_resourceclaim_status_devices{namespace=~"mlops-training|ml-training-prod"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ResourceClaim status.devices is missing for a DRA-backed training workload"

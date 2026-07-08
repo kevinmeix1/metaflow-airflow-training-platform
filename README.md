@@ -111,6 +111,8 @@ For GPU ResourceFlavors, Dynamic Resource Allocation notes, MIG/time-slicing tra
 
 For concrete DRA ResourceClaimTemplates, Kueue-coupled training admission, and CPU fallback paths, see [dynamic resource allocation](docs/dynamic-resource-allocation.md).
 
+For Kubernetes v1.36 DRA `ResourceHealthStatus`, `ResourceClaim.status.devices`, and device quarantine during training backfills, see [DRA resource health status](docs/dra-resource-health-status.md).
+
 For Kueue topology-aware backfills, rack-level placement, Airflow scheduler spread, and wave-splitting fallbacks, see [topology-aware scheduling](docs/topology-aware-scheduling.md).
 
 For elastic KubeRay backfill waves, Kueue admission, GPU worker bounds, and Metaflow recovery fallbacks, see [KubeRay and Kueue](docs/kuberay-kueue.md).
