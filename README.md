@@ -117,6 +117,8 @@ For elastic KubeRay backfill waves, Kueue admission, GPU worker bounds, and Meta
 
 For Kueue Workload Slices, JobSet elastic backfills, replacement slices, and recovery preemption, see [Kueue elastic workloads](docs/kueue-elastic-workloads.md).
 
+For Kubernetes Indexed Jobs, per-index retry budgets, `successPolicy`, `podFailurePolicy`, and Airflow 3 failed-only backfill recovery, see [indexed job resilience](docs/indexed-job-resilience.md).
+
 For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
 
 For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes telemetry attributes with row redaction, see [semantic telemetry contract](docs/semantic-telemetry.md).
