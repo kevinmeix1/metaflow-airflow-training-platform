@@ -54,6 +54,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Runtime Security", "runtime_security_plan.json", "Kubernetes v1.36 user namespaces and fine-grained kubelet authorization for Metaflow workers, telemetry readers, and failed-partition replay."),
         ("Control Plane Diagnostics", "control_plane_diagnostics_plan.json", "Kubernetes v1.36 controller staleness, /statusz, /flagz, PSI, and native-histogram readiness for training backfills."),
         ("Memory QoS", "memory_qos_plan.json", "Kubernetes v1.36 MemoryQoS, TieredReservation, cgroup v2, PSI, and memory.high guardrails for Airflow and Metaflow training."),
+        ("HPA Scale To Zero", "hpa_scale_to_zero_plan.json", "Kubernetes v1.36 HPAScaleToZero for elastic Metaflow workers with Object and External metric wakeups."),
         ("Release Admission", "release_admission_decision.json", "Fail-closed backfill admission record combining SLOs, capacity, queues, governance, and provenance."),
         ("Tenant Fairness", "tenancy_fairness_report.json", "Training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, and chargeback labels."),
         ("Workload Identity", "identity_access_report.json", "Keyless identities for Airflow schedulers, Metaflow partition workers, and MLflow registration."),

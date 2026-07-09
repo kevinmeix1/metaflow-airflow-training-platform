@@ -161,6 +161,8 @@ For Kubernetes v1.36 controller staleness mitigation, `/statusz`, `/flagz`, PSI 
 
 For Kubernetes v1.36 Memory QoS tiered protection, `memoryReservationPolicy: TieredReservation`, cgroup v2, PSI, and `memory.high` guardrails for Airflow and Metaflow training, see [memory QoS](docs/memory-qos.md).
 
+For Kubernetes v1.36 HPA scale-to-zero, `HPAScaleToZero`, Object/External wake metrics, and cold-start budgets for elastic Metaflow workers, see [HPA scale to zero](docs/hpa-scale-to-zero.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).

@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-hpa-scale-to-zero-feature-gate
+  namespace: mlops-training
+  labels:
+    platform.mlops.dev/control: hpa-scale-to-zero
+data:
+  feature-gate: HPAScaleToZero
+  status: "Kubernetes v1.36 alpha; disabled by default"
+  requirement: "minReplicas: 0 requires autoscaling/v2 plus Object or External metrics"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metaflow-gpu-training-worker-scale-to-zero
+  namespace: mlops-training
+  annotations:
+    platform.mlops.dev/feature-gate: HPAScaleToZero
+    platform.mlops.dev/cold-start-budget-seconds: "120"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metaflow-gpu-training-worker
+  minReplicas: 0
+  maxReplicas: 40
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: training_partition_queue_depth
+          selector:
+            matchLabels:
+              queue: partition-training
+        target:
+          type: Value
+          value: "1"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 500
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 900
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ray-hpo-worker-pool-scale-to-zero
+  namespace: mlops-training
+  annotations:
+    platform.mlops.dev/feature-gate: HPAScaleToZero
+    platform.mlops.dev/cold-start-budget-seconds: "120"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ray-hpo-worker-pool
+  minReplicas: 0
+  maxReplicas: 20
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: training_hpo_trial_backlog
+          selector:
+            matchLabels:
+              queue: hpo-trials
+        target:
+          type: Value
+          value: "1"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+    scaleDown:
+      stabilizationWindowSeconds: 1200
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: failed-partition-replay-worker-scale-to-zero
+  namespace: mlops-training
+  annotations:
+    platform.mlops.dev/feature-gate: HPAScaleToZero
+    platform.mlops.dev/cold-start-budget-seconds: "60"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: failed-partition-replay-worker
+  minReplicas: 0
+  maxReplicas: 8
+  metrics:
+    - type: Object
+      object:
+        describedObject:
+          apiVersion: v1
+          kind: Service
+          name: failed-partition-replay-queue
+        metric:
+          name: failed_partition_replay_backlog
+        target:
+          type: Value
+          value: "1"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+    scaleDown:
+      stabilizationWindowSeconds: 300
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-hpa-scale-to-zero
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.hpa-scale-to-zero
+      rules:
+        - alert: TrainingScaleToZeroWakeupFailed
+          expr: max(training_partition_queue_depth) > 0 and max(kube_horizontalpodautoscaler_status_desired_replicas{namespace="mlops-training", horizontalpodautoscaler=~".*scale-to-zero"}) == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: Training worker did not wake from scale-to-zero after backlog arrived
+        - alert: TrainingScaleToZeroMetricMissing
+          expr: absent(training_partition_queue_depth) or absent(training_hpo_trial_backlog)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: External metric required for HPAScaleToZero is missing
+        - alert: TrainingScaleToZeroColdStartBudgetExceeded
+          expr: max(training_worker_cold_start_seconds{namespace="mlops-training"}) > 120
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Training worker exceeded the scale-to-zero cold-start budget
