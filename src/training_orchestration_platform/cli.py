@@ -30,6 +30,7 @@ from .indexed_job_resilience import build_indexed_job_resilience_plan
 from .inplace_resize import build_inplace_resize_plan
 from .inference_gateway import build_inference_gateway_plan
 from .kuberay_capacity import build_kuberay_capacity_plan
+from .memory_qos import build_memory_qos_plan
 from .multi_team_readiness import build_multi_team_readiness_plan
 from .multikueue_dispatch import build_multikueue_dispatch_plan
 from .network_security import build_network_security_report
@@ -107,6 +108,7 @@ def demo(output: str | Path) -> dict:
     workload_aware_scheduling = build_workload_aware_scheduling_plan(root)
     runtime_security = build_runtime_security_plan(root)
     control_plane_diagnostics = build_control_plane_diagnostics_plan(root)
+    memory_qos = build_memory_qos_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
@@ -171,6 +173,7 @@ def demo(output: str | Path) -> dict:
         "workload_aware_scheduling": workload_aware_scheduling,
         "runtime_security": runtime_security,
         "control_plane_diagnostics": control_plane_diagnostics,
+        "memory_qos": memory_qos,
         "oci_artifact_volume": oci_artifact_volume,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
@@ -301,6 +304,8 @@ def main(argv: list[str] | None = None) -> int:
     runtime_security_parser.add_argument("--output", default=".local")
     control_plane_parser = sub.add_parser("control-plane-diagnostics")
     control_plane_parser.add_argument("--output", default=".local")
+    memory_qos_parser = sub.add_parser("memory-qos")
+    memory_qos_parser.add_argument("--output", default=".local")
     artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
     artifact_volume_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
@@ -402,6 +407,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_runtime_security_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "control-plane-diagnostics":
         print(json.dumps(build_control_plane_diagnostics_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "memory-qos":
+        print(json.dumps(build_memory_qos_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "oci-artifact-volumes":
         print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":

@@ -159,6 +159,8 @@ For Kubernetes v1.36 user namespaces, `hostUsers: false`, fine-grained kubelet a
 
 For Kubernetes v1.36 controller staleness mitigation, `/statusz`, `/flagz`, PSI metrics, and native-histogram readiness for backfill automation, see [control plane diagnostics](docs/control-plane-diagnostics.md).
 
+For Kubernetes v1.36 Memory QoS tiered protection, `memoryReservationPolicy: TieredReservation`, cgroup v2, PSI, and `memory.high` guardrails for Airflow and Metaflow training, see [memory QoS](docs/memory-qos.md).
+
 For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
 
 For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).
