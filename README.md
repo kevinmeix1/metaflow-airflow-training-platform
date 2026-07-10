@@ -15,6 +15,8 @@ require a real cluster and shared infrastructure.
 
 [Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png) | [Checkpoint recovery timeline](docs/screenshots/dashboard-checkpoint-timeline.png)
 
+![Judge evidence deck](docs/screenshots/dashboard-evidence-deck.png)
+
 ## Implementation Status
 
 | Capability | Evidence | Status |
