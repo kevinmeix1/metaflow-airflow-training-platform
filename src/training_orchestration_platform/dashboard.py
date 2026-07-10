@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 from pathlib import Path
 
 from .io import read_json, read_jsonl
@@ -103,6 +104,12 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     resume_verification = read_json(root / "metaflow" / "resume_verification.json") if (root / "metaflow" / "resume_verification.json").exists() else {}
     runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
     resume_status = "success" if resume_verification.get("passed") else ("failed" if resume_verification else "not run")
+    planner_workloads = [
+        workload
+        for wave in capacity_plan.get("waves", [])
+        for workload in wave.get("workloads", [])
+    ]
+    planner_payload = json.dumps(planner_workloads, separators=(",", ":")).replace("</", "<\\/")
     recent = [
         {
                 "date": row.get("ds"),
@@ -180,8 +187,29 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .fact > span {{ display:block; color:#64748b; font-size:12px; margin-bottom:7px; }}
         .fact strong {{ display:block; min-width:0; font-size:17px; overflow-wrap:anywhere; }}
         .fact .nowrap {{ display:block; width:100%; }}
-        @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout {{ grid-template-columns:1fr; }} }}
+        .planner {{ border-left:4px solid #15803d; margin-bottom:18px; }}
+        .planner-heading {{ display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:16px; }}
+        .planner-heading p {{ margin:5px 0 0; color:#64748b; font-size:13px; }}
+        .planner-grid {{ display:grid; grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr); gap:20px; align-items:start; }}
+        .controls {{ display:grid; gap:14px; }}
+        .control-row {{ display:grid; grid-template-columns:150px minmax(0,1fr) 72px; gap:10px; align-items:center; }}
+        .control-row label {{ color:#475569; font-size:12px; font-weight:700; }}
+        .control-row input {{ width:100%; accent-color:#15803d; }}
+        .control-value {{ color:#0f172a; background:#f1f5f9; border-radius:5px; padding:6px 8px; font-size:12px; font-weight:800; text-align:center; }}
+        .planner-kpis {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid #e3e9f0; border-radius:6px; overflow:hidden; margin-bottom:14px; }}
+        .planner-kpis div {{ padding:11px; min-height:66px; background:#f8fafc; border-right:1px solid #e3e9f0; }}
+        .planner-kpis div:last-child {{ border-right:0; }}
+        .planner-kpis span {{ display:block; color:#64748b; font-size:11px; margin-bottom:7px; }}
+        .planner-kpis strong {{ display:block; font-size:16px; }}
+        .wave-list {{ display:grid; gap:8px; max-height:268px; overflow:auto; padding-right:4px; }}
+        .wave-row {{ display:grid; grid-template-columns:64px minmax(0,1fr) 150px; gap:10px; align-items:center; padding:9px 10px; border:1px solid #e3e9f0; border-radius:6px; background:white; }}
+        .wave-name {{ font-size:12px; font-weight:800; color:#166534; }}
+        .wave-workloads {{ display:flex; flex-wrap:wrap; gap:5px; }}
+        .wave-chip {{ padding:3px 6px; border-radius:4px; background:#ecfdf5; color:#166534; font-size:11px; white-space:nowrap; }}
+        .wave-resources {{ color:#475569; font-size:11px; text-align:right; }}
+        @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout,.planner-grid {{ grid-template-columns:1fr; }} }}
         @media (max-width:540px) {{ .facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} }}
+        @media (max-width:620px) {{ .planner-heading {{ flex-direction:column; }} .planner-kpis {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .planner-kpis div:nth-child(2) {{ border-right:0; }} .planner-kpis div:nth-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .control-row {{ grid-template-columns:110px minmax(0,1fr) 60px; }} .wave-row {{ grid-template-columns:52px minmax(0,1fr); }} .wave-resources {{ grid-column:2; text-align:left; }} }}
       </style>
     </head>
     <body>
@@ -197,6 +225,29 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           <div class="metric"><span>Latest health</span><strong>{badge(latest_healthy)}</strong></div>
           <div class="metric"><span>Metaflow runtime</span><strong>{badge(runtime_verified)}</strong></div>
           <div class="metric"><span>Recovery drill</span><strong>{status_badge(resume_status)}</strong></div>
+        </section>
+        <section class="panel planner" data-testid="backfill-capacity-lab">
+          <div class="planner-heading">
+            <div><h2>Backfill Capacity Lab</h2><p>Repack the generated partition workloads under different queue budgets.</p></div>
+            <span class="badge neutral">first-fit, priority ordered</span>
+          </div>
+          <div class="planner-grid">
+            <div class="controls">
+              <div class="control-row"><label for="maxCpu">CPU per wave</label><input id="maxCpu" type="range" min="2" max="12" step="0.5" value="6"><output id="maxCpuValue" class="control-value">6 CPU</output></div>
+              <div class="control-row"><label for="maxMemory">Memory per wave</label><input id="maxMemory" type="range" min="4" max="24" step="1" value="10"><output id="maxMemoryValue" class="control-value">10 GiB</output></div>
+              <div class="control-row"><label for="maxParallelism">Parallel workloads</label><input id="maxParallelism" type="range" min="1" max="8" step="1" value="4"><output id="maxParallelismValue" class="control-value">4 pods</output></div>
+              <p class="planner-note">Critical model families stay ahead of baseline workloads. Completed partitions remain excluded unless the backfill is forced.</p>
+            </div>
+            <div>
+              <div class="planner-kpis" aria-live="polite">
+                <div><span>Workloads</span><strong id="plannerWorkloads">{len(planner_workloads)}</strong></div>
+                <div><span>Waves</span><strong id="plannerWaves">{esc(capacity_plan.get('wave_count', 0))}</strong></div>
+                <div><span>Peak CPU</span><strong id="plannerCpu">n/a</strong></div>
+                <div><span>Peak memory</span><strong id="plannerMemory">n/a</strong></div>
+              </div>
+              <div id="waveList" class="wave-list"></div>
+            </div>
+          </div>
         </section>
         <section class="layout">
           <div>
@@ -259,6 +310,69 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           </div>
         </section>
       </main>
+      <script>
+        const plannerWorkloads = {planner_payload};
+        const plannerById = (id) => document.getElementById(id);
+
+        function packWaves(workloads, maxCpu, maxMemory, maxParallelism) {{
+          const waves = [];
+          let current = [];
+          let cpu = 0;
+          let memory = 0;
+          workloads.forEach((workload) => {{
+            const exceeds = current.length >= maxParallelism || cpu + workload.cpu > maxCpu || memory + workload.memory_gib > maxMemory;
+            if (current.length && exceeds) {{
+              waves.push({{workloads: current, cpu, memory}});
+              current = [];
+              cpu = 0;
+              memory = 0;
+            }}
+            current.push(workload);
+            cpu += workload.cpu;
+            memory += workload.memory_gib;
+          }});
+          if (current.length) waves.push({{workloads: current, cpu, memory}});
+          return waves;
+        }}
+
+        function renderPlanner() {{
+          const maxCpu = Number(plannerById("maxCpu").value);
+          const maxMemory = Number(plannerById("maxMemory").value);
+          const maxParallelism = Number(plannerById("maxParallelism").value);
+          plannerById("maxCpuValue").textContent = maxCpu + " CPU";
+          plannerById("maxMemoryValue").textContent = maxMemory + " GiB";
+          plannerById("maxParallelismValue").textContent = maxParallelism + " pods";
+          const waves = packWaves(plannerWorkloads, maxCpu, maxMemory, maxParallelism);
+          plannerById("plannerWaves").textContent = waves.length;
+          plannerById("plannerCpu").textContent = Math.max(0, ...waves.map((wave) => wave.cpu)).toFixed(1);
+          plannerById("plannerMemory").textContent = Math.max(0, ...waves.map((wave) => wave.memory)).toFixed(1) + " GiB";
+          const list = plannerById("waveList");
+          list.replaceChildren();
+          waves.forEach((wave, index) => {{
+            const row = document.createElement("div");
+            row.className = "wave-row";
+            const name = document.createElement("span");
+            name.className = "wave-name";
+            name.textContent = "Wave " + (index + 1);
+            const items = document.createElement("div");
+            items.className = "wave-workloads";
+            wave.workloads.forEach((workload) => {{
+              const chip = document.createElement("span");
+              chip.className = "wave-chip";
+              chip.textContent = workload.partition.slice(5) + " / " + workload.model_family.replaceAll("_", " ");
+              items.appendChild(chip);
+            }});
+            const resources = document.createElement("span");
+            resources.className = "wave-resources";
+            resources.textContent = wave.cpu.toFixed(1) + " CPU / " + wave.memory.toFixed(1) + " GiB";
+            row.append(name, items, resources);
+            list.appendChild(row);
+          }});
+        }}
+
+        ["maxCpu", "maxMemory", "maxParallelism"].forEach((id) => plannerById(id).addEventListener("input", renderPlanner));
+        renderPlanner();
+      </script>
     </body>
     </html>
     """

@@ -1,0 +1,15 @@
+Welcome to the Metaflow and Airflow Training Platform.
+
+This project demonstrates a deliberate boundary between enterprise scheduling and model development. Airflow owns calendars, asset state, partition backfills, cross-team dependencies, pools, and incident callbacks. Metaflow owns the training graph, bounded candidate fan-out, retry boundaries, cards, artifacts, and run lineage.
+
+The operator console starts with generated evidence from a deterministic local run. Nine partitions succeeded, one failure is retained rather than hidden, and the latest health, executable Metaflow contract, and recovery drill all pass.
+
+The interactive Backfill Capacity Lab turns the committed plan into an operational decision tool. A reviewer can change CPU, memory, and parallel workload limits in the browser. The client uses the same first-fit, priority-ordered packing policy as the Python planner. Reducing CPU from six cores to two repacks three workloads from one wave into three, while critical model families remain ahead of baseline work and completed partitions stay excluded.
+
+The evidence view connects those decisions to real execution. Metaflow version 2.19.29 runs four candidates through a foreach fan-out, applies quality gates, selects a deterministic winner, renders cards, and publishes an immutable registration key. The repository verifies the run with the Metaflow Client and Runner APIs rather than trusting console text.
+
+The failure drill forces publish to exhaust its initial attempt and two retries. Resume then clones eight successful upstream tasks from the origin run and executes only publish and end. This preserves lineage, avoids paying for training twice, and proves that publication is idempotent.
+
+The production mapping adds Airflow 3.3 asset scheduling, Kubernetes jobs, Kueue admission and fair sharing, remote object storage, MLflow registration, workload identity, network policy, OpenTelemetry semantics, and disaster recovery evidence. The local implementation clearly labels what is executable and what requires shared cluster infrastructure.
+
+The result is not a decorative DAG. It is a reviewable control plane where a judge can change capacity, inspect model and recovery evidence, and explain exactly how a failed partition returns to a safe published state.

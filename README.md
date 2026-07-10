@@ -13,6 +13,8 @@ require a real cluster and shared infrastructure.
 
 ![Training orchestration dashboard](docs/screenshots/dashboard.png)
 
+[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md)
+
 ## Implementation Status
 
 | Capability | Evidence | Status |
@@ -22,6 +24,7 @@ require a real cluster and shared infrastructure.
 | Four-way candidate `foreach`, gates, cards, artifacts | Metaflow run verifier and uploaded CI evidence | Executable in CI |
 | Failed publish, retry exhaustion, and `resume` lineage | `make metaflow-resume-contract` | Executable in CI |
 | Airflow 3.3 task and asset state DAG | `make airflow-sdk-contract` | SDK parse-verified in CI |
+| Interactive backfill capacity lab | Browser-tested CPU, memory, and concurrency repacking | Executable locally |
 | Metaflow-generated Airflow DAG | Official export command and environment contract | Deployment mapping |
 | Kueue, Kubernetes, DRA, KubeRay, GitOps, and policy assets | YAML and deterministic policy reports | Reference design |
 | MLflow service and remote object storage | Local compatible artifact contract | Deployment mapping |
@@ -40,6 +43,16 @@ make demo
 make test
 open .local/reports/training_orchestration_dashboard.html
 ```
+
+In the Backfill Capacity Lab, lower CPU per wave from 6 to 2. The same three
+priority-ordered workloads are repacked from one wave into three without
+rerunning the pipeline. The dashboard also exposes the real Metaflow runtime
+contract, candidate fan-out, immutable registration key, failed boundary,
+cloned resume lineage, and recent orchestration events.
+
+The operator console is responsive at review and incident-response sizes:
+
+![Responsive backfill capacity lab](docs/screenshots/dashboard-mobile.png)
 
 Run the actual Metaflow engine and its executable contract:
 
@@ -212,6 +225,8 @@ single failed state transition.
 | `make backfill` | Execute a fixed multi-partition backfill |
 | `make plan-backfill` | Build bounded backfill waves and skipped-partition evidence |
 | `make dashboard` | Regenerate the reviewer dashboard from current artifacts |
+| `make demo-voice` | Generate the neural judge narration with `edge-tts` |
+| `make demo-video` | Assemble the committed narrated desktop and mobile walkthrough |
 | `make test` | Run domain, failure, manifest, and runtime unit tests |
 | `make ci-verify` | Validate the complete generated evidence bundle |
 

@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard metaflow-run metaflow-verify metaflow-runtime-contract metaflow-resume-contract lint-metaflow verify-metaflow-lock package package-smoke policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard demo-voice demo-video metaflow-run metaflow-verify metaflow-runtime-contract metaflow-resume-contract lint-metaflow verify-metaflow-lock package package-smoke policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 PYTHON ?= python3
 METAFLOW_PYTHON ?= $(PYTHON)
@@ -21,6 +21,12 @@ plan-backfill:
 
 dashboard:
 	PYTHONPATH=src python3 -m training_orchestration_platform dashboard --output .local
+
+demo-voice:
+	$(PYTHON) tools/generate_demo_voice.py
+
+demo-video:
+	bash tools/build_demo_video.sh
 
 metaflow-run:
 	mkdir -p "$(METAFLOW_DATASTORE_ROOT)"
