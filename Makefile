@@ -213,6 +213,8 @@ release-admission:
 
 ci-verify:
 	PYTHONPATH=src python3 -m compileall -q src tests
+	test -f docs/demo/training-judge-demo.mp4
+	test $$(wc -c < docs/demo/training-judge-demo.mp4) -gt 1000000
 	test -f .local/reports/training_orchestration_dashboard.html
 	test -f .local/reports/index.html
 	test -f .local/reports/governance_evidence_bundle.json
