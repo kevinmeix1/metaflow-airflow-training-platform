@@ -13,7 +13,7 @@ require a real cluster and shared infrastructure.
 
 ![Training orchestration dashboard](docs/screenshots/dashboard.png)
 
-[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png)
+[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png) | [Checkpoint recovery timeline](docs/screenshots/dashboard-checkpoint-timeline.png)
 
 ## Implementation Status
 
@@ -50,6 +50,10 @@ priority-ordered workloads are repacked from one wave into three without
 rerunning the pipeline. The dashboard also exposes the real Metaflow runtime
 contract, candidate fan-out, immutable registration key, failed boundary,
 cloned resume lineage, and recent orchestration events.
+
+The Checkpoint Recovery Timeline lets reviewers switch between production
+backfill and exploratory HPO profiles, then inspect restore time, resume SLA,
+checkpoint write volume, queue priority, and recovery decision in one place.
 
 The operator console is responsive at review and incident-response sizes:
 

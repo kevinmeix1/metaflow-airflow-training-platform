@@ -108,6 +108,11 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     checkpoint_capacity = checkpoint_training.get("capacity", {})
     checkpoint_windows = checkpoint_training.get("resume_windows", [])
     checkpoint_observability = checkpoint_training.get("observability", {})
+    checkpoint_jobs = checkpoint_training.get("training_jobs", [])
+    checkpoint_payload = json.dumps(
+        {"jobs": checkpoint_jobs, "windows": checkpoint_windows},
+        separators=(",", ":"),
+    ).replace("</", "<\\/")
     runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
     resume_status = "success" if resume_verification.get("passed") else ("failed" if resume_verification else "not run")
     planner_workloads = [
@@ -213,8 +218,29 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .wave-workloads {{ display:flex; flex-wrap:wrap; gap:5px; }}
         .wave-chip {{ padding:3px 6px; border-radius:4px; background:#ecfdf5; color:#166534; font-size:11px; white-space:nowrap; }}
         .wave-resources {{ color:#475569; font-size:11px; text-align:right; }}
+        .checkpoint-lab {{ border-left:4px solid #2563eb; margin-bottom:18px; }}
+        .checkpoint-top {{ display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:18px; align-items:start; margin-bottom:16px; }}
+        .checkpoint-top p {{ margin:5px 0 0; color:#64748b; font-size:13px; }}
+        .select-wrap label {{ display:block; color:#475569; font-size:12px; font-weight:800; margin-bottom:6px; }}
+        .select-wrap select {{ width:100%; min-height:38px; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; background:#fff; color:#0f172a; font:inherit; }}
+        .checkpoint-grid {{ display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); gap:18px; align-items:start; }}
+        .checkpoint-facts {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border:1px solid #e3e9f0; border-radius:6px; overflow:hidden; }}
+        .checkpoint-facts div {{ padding:12px; min-height:74px; background:#f8fafc; border-right:1px solid #e3e9f0; border-bottom:1px solid #e3e9f0; }}
+        .checkpoint-facts div:nth-child(2n) {{ border-right:0; }}
+        .checkpoint-facts div:nth-last-child(-n+2) {{ border-bottom:0; }}
+        .checkpoint-facts span {{ display:block; color:#64748b; font-size:11px; margin-bottom:7px; }}
+        .checkpoint-facts strong {{ display:block; font-size:16px; overflow-wrap:anywhere; }}
+        .timeline {{ display:grid; gap:12px; }}
+        .timeline-row {{ display:grid; grid-template-columns:150px minmax(0,1fr) 74px; gap:12px; align-items:center; }}
+        .timeline-label {{ color:#475569; font-size:12px; font-weight:800; }}
+        .timeline-track {{ height:13px; border-radius:999px; background:#e2e8f0; overflow:hidden; }}
+        .timeline-fill {{ height:100%; border-radius:999px; background:#2563eb; }}
+        .timeline-fill.sla {{ background:#22c55e; }}
+        .timeline-value {{ color:#0f172a; font-size:12px; font-weight:800; text-align:right; }}
+        .timeline-note {{ margin:12px 0 0; color:#64748b; font-size:12px; }}
         @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout,.planner-grid {{ grid-template-columns:1fr; }} }}
-        @media (max-width:540px) {{ .facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} }}
+        @media (max-width:760px) {{ .checkpoint-top,.checkpoint-grid {{ grid-template-columns:1fr; }} }}
+        @media (max-width:540px) {{ .facts,.checkpoint-facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} .checkpoint-facts div {{ border-right:0; }} .checkpoint-facts div:nth-last-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .checkpoint-facts div:last-child {{ border-bottom:0; }} .timeline-row {{ grid-template-columns:1fr; gap:6px; }} .timeline-value {{ text-align:left; }} }}
         @media (max-width:620px) {{ .planner-heading {{ flex-direction:column; }} .planner-kpis {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .planner-kpis div:nth-child(2) {{ border-right:0; }} .planner-kpis div:nth-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .control-row {{ grid-template-columns:110px minmax(0,1fr) 60px; }} .wave-row {{ grid-template-columns:52px minmax(0,1fr); }} .wave-resources {{ grid-column:2; text-align:left; }} }}
       </style>
     </head>
@@ -252,6 +278,36 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div><span>Peak memory</span><strong id="plannerMemory">n/a</strong></div>
               </div>
               <div id="waveList" class="wave-list"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel checkpoint-lab" data-testid="checkpoint-recovery-timeline">
+          <div class="checkpoint-top">
+            <div>
+              <h2>Checkpoint Recovery Timeline</h2>
+              <p>Inspect restore time, checkpoint write volume, queue priority, and SLA margin for each distributed training profile.</p>
+            </div>
+            <div class="select-wrap">
+              <label for="checkpointJob">Training profile</label>
+              <select id="checkpointJob"></select>
+            </div>
+          </div>
+          <div class="checkpoint-grid">
+            <div class="checkpoint-facts" aria-live="polite">
+              <div><span>Framework</span><strong id="checkpointFramework">n/a</strong></div>
+              <div><span>Queue</span><strong id="checkpointQueue">n/a</strong></div>
+              <div><span>Replica groups</span><strong id="checkpointReplicas">n/a</strong></div>
+              <div><span>Priority</span><strong id="checkpointPriority">n/a</strong></div>
+              <div><span>Checkpoint scope</span><strong id="checkpointScope">n/a</strong></div>
+              <div><span>Recovery decision</span><strong id="checkpointDecision">n/a</strong></div>
+            </div>
+            <div>
+              <div class="timeline">
+                <div class="timeline-row"><span class="timeline-label">Restore estimate</span><div class="timeline-track"><div id="restoreFill" class="timeline-fill"></div></div><span id="restoreValue" class="timeline-value">n/a</span></div>
+                <div class="timeline-row"><span class="timeline-label">Resume SLA</span><div class="timeline-track"><div id="slaFill" class="timeline-fill sla"></div></div><span id="slaValue" class="timeline-value">n/a</span></div>
+                <div class="timeline-row"><span class="timeline-label">Checkpoint write</span><div class="timeline-track"><div id="writeFill" class="timeline-fill"></div></div><span id="writeValue" class="timeline-value">n/a</span></div>
+              </div>
+              <p id="checkpointNote" class="timeline-note">Select a training profile to inspect checkpoint recovery evidence.</p>
             </div>
           </div>
         </section>
@@ -340,6 +396,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
       </main>
       <script>
         const plannerWorkloads = {planner_payload};
+        const checkpointData = {checkpoint_payload};
         const plannerById = (id) => document.getElementById(id);
 
         function packWaves(workloads, maxCpu, maxMemory, maxParallelism) {{
@@ -400,6 +457,58 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
 
         ["maxCpu", "maxMemory", "maxParallelism"].forEach((id) => plannerById(id).addEventListener("input", renderPlanner));
         renderPlanner();
+
+        function formatReplicaGroups(groups) {{
+          return Object.entries(groups || {{}}).map(([name, count]) => name + " " + count).join(" / ") || "n/a";
+        }}
+
+        function selectedCheckpointWindow(jobName) {{
+          return checkpointData.windows.find((item) => item.job === jobName) || {{}};
+        }}
+
+        function setWidth(id, value, max) {{
+          const percent = max > 0 ? Math.max(4, Math.min(100, (value / max) * 100)) : 0;
+          plannerById(id).style.width = percent + "%";
+        }}
+
+        function renderCheckpointTimeline() {{
+          const select = plannerById("checkpointJob");
+          const job = checkpointData.jobs.find((item) => item.name === select.value) || checkpointData.jobs[0] || {{}};
+          const window = selectedCheckpointWindow(job.name);
+          const restore = Number(window.estimated_restore_minutes || 0);
+          const sla = Number(window.resume_sla_minutes || 0);
+          const write = Number(window.checkpoint_write_gib || 0);
+          const maxTime = Math.max(restore, sla, 1);
+          plannerById("checkpointFramework").textContent = job.framework || "n/a";
+          plannerById("checkpointQueue").textContent = job.queue || "n/a";
+          plannerById("checkpointReplicas").textContent = formatReplicaGroups(job.replica_groups);
+          plannerById("checkpointPriority").textContent = job.priority || "n/a";
+          plannerById("checkpointScope").textContent = job.checkpoint_scope || "n/a";
+          plannerById("checkpointDecision").textContent = window.passed ? "Resume inside SLA" : "Hold registration";
+          setWidth("restoreFill", restore, maxTime);
+          setWidth("slaFill", sla, maxTime);
+          setWidth("writeFill", write, 6);
+          plannerById("restoreValue").textContent = restore.toFixed(1) + " min";
+          plannerById("slaValue").textContent = sla.toFixed(1) + " min";
+          plannerById("writeValue").textContent = write.toFixed(2) + " GiB";
+          plannerById("checkpointNote").textContent = window.passed
+            ? "Safe to resume: Airflow partition identity and Metaflow checkpoint scope stay stable."
+            : "Hold model registration until restore time and checkpoint integrity return inside policy.";
+        }}
+
+        function initializeCheckpointTimeline() {{
+          const select = plannerById("checkpointJob");
+          checkpointData.jobs.forEach((job) => {{
+            const option = document.createElement("option");
+            option.value = job.name;
+            option.textContent = job.name.replaceAll("-", " ");
+            select.appendChild(option);
+          }});
+          select.addEventListener("change", renderCheckpointTimeline);
+          renderCheckpointTimeline();
+        }}
+
+        initializeCheckpointTimeline();
       </script>
     </body>
     </html>
