@@ -8,13 +8,14 @@ SUBTITLES="${4:-.local/demo/training-judge-demo.srt}"
 
 screenshots=(
   "dashboard.png"
+  "dashboard-demo-theater.png"
   "dashboard-evidence.png"
   "dashboard-checkpoint-training.png"
   "dashboard-checkpoint-timeline.png"
   "dashboard-event-dedupe.png"
   "dashboard-mobile.png"
 )
-durations=(36 40 34 36 30 28)
+durations=(36 22 40 34 36 30 28)
 
 command -v ffmpeg >/dev/null || { echo "ffmpeg is required" >&2; exit 1; }
 test -f "$AUDIO" || { echo "Missing narration: run make demo-voice" >&2; exit 1; }

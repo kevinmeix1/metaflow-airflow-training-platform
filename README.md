@@ -17,6 +17,8 @@ require a real cluster and shared infrastructure.
 
 ![Judge evidence deck](docs/screenshots/dashboard-evidence-deck.png)
 
+![Judge demo theater](docs/screenshots/dashboard-demo-theater.png)
+
 ## Implementation Status
 
 | Capability | Evidence | Status |

@@ -200,6 +200,26 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .evidence-card span {{ display:block; color:#64748b; font-size:11px; font-weight:800; text-transform:uppercase; margin-bottom:8px; }}
         .evidence-card strong {{ display:block; font-size:15px; line-height:1.25; margin-bottom:8px; overflow-wrap:anywhere; }}
         .evidence-card p {{ margin:0; color:#475569; font-size:12px; line-height:1.45; }}
+        .demo-theater {{ border-left:4px solid #7c3aed; }}
+        .theater-grid {{ display:grid; grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr); gap:16px; align-items:stretch; }}
+        .theater-stage {{ min-height:258px; border:1px solid #dbe3ec; border-radius:8px; padding:16px; background:linear-gradient(135deg,#111827,#312e81); color:#fff; display:grid; align-content:space-between; }}
+        .theater-stage span {{ color:#c4b5fd; font-size:12px; font-weight:800; text-transform:uppercase; }}
+        .theater-stage strong {{ display:block; margin-top:8px; font-size:25px; line-height:1.15; }}
+        .theater-stage p {{ margin:12px 0 0; color:#ddd6fe; line-height:1.45; }}
+        .theater-actions {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }}
+        .cue {{ border:1px solid #c4b5fd; border-radius:6px; padding:9px 11px; background:#fff; color:#4c1d95; font:inherit; font-size:12px; font-weight:900; cursor:pointer; }}
+        .cue.active {{ background:#7c3aed; color:#fff; }}
+        .theater-panel {{ display:grid; gap:12px; }}
+        .theater-kpis {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid #e4e9f0; border-radius:8px; overflow:hidden; }}
+        .theater-kpis div {{ min-height:78px; padding:12px; background:#f8fafc; border-right:1px solid #e4e9f0; }}
+        .theater-kpis div:last-child {{ border-right:0; }}
+        .theater-kpis span {{ display:block; color:#64748b; font-size:11px; margin-bottom:7px; }}
+        .theater-kpis strong {{ display:block; font-size:16px; overflow-wrap:anywhere; }}
+        .theater-progress {{ height:10px; border-radius:999px; overflow:hidden; background:#e2e8f0; }}
+        .theater-progress span {{ display:block; height:100%; width:25%; background:#7c3aed; transition:width .18s ease; }}
+        .theater-notes {{ margin:0; color:#475569; line-height:1.45; }}
+        .theater-links {{ display:flex; flex-wrap:wrap; gap:8px; }}
+        .theater-links a {{ border:1px solid #dbe3ec; border-radius:6px; padding:8px 10px; color:#1d4ed8; font-size:12px; font-weight:800; text-decoration:none; background:#fff; }}
         .facts {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; border-top:1px solid #e3e9f0; }}
         .fact {{ min-width:0; padding:13px 10px 13px 0; min-height:72px; border-bottom:1px solid #e3e9f0; }}
         .fact:nth-child(even) {{ padding-left:14px; border-left:1px solid #e3e9f0; }}
@@ -248,7 +268,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .timeline-note {{ margin:12px 0 0; color:#64748b; font-size:12px; }}
         @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout,.planner-grid {{ grid-template-columns:1fr; }} .evidence-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} }}
         @media (max-width:760px) {{ .checkpoint-top,.checkpoint-grid {{ grid-template-columns:1fr; }} }}
-        @media (max-width:540px) {{ .facts,.checkpoint-facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} .checkpoint-facts div {{ border-right:0; }} .checkpoint-facts div:nth-last-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .checkpoint-facts div:last-child {{ border-bottom:0; }} .timeline-row {{ grid-template-columns:1fr; gap:6px; }} .timeline-value {{ text-align:left; }} .evidence-head {{ flex-direction:column; }} .evidence-grid {{ grid-template-columns:1fr; }} }}
+        @media (max-width:540px) {{ .facts,.checkpoint-facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} .checkpoint-facts div {{ border-right:0; }} .checkpoint-facts div:nth-last-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .checkpoint-facts div:last-child {{ border-bottom:0; }} .timeline-row {{ grid-template-columns:1fr; gap:6px; }} .timeline-value {{ text-align:left; }} .evidence-head {{ flex-direction:column; }} .evidence-grid,.theater-grid,.theater-kpis {{ grid-template-columns:1fr; }} .theater-kpis div {{ border-right:0; border-bottom:1px solid #e4e9f0; }} .theater-kpis div:last-child {{ border-bottom:0; }} }}
         @media (max-width:620px) {{ .planner-heading {{ flex-direction:column; }} .planner-kpis {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} .planner-kpis div:nth-child(2) {{ border-right:0; }} .planner-kpis div:nth-child(-n+2) {{ border-bottom:1px solid #e3e9f0; }} .control-row {{ grid-template-columns:110px minmax(0,1fr) 60px; }} .wave-row {{ grid-template-columns:52px minmax(0,1fr); }} .wave-resources {{ grid-column:2; text-align:left; }} }}
       </style>
     </head>
@@ -281,6 +301,58 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
             <div class="evidence-card"><span>Kubernetes capacity</span><strong>Backfills are admitted as workloads</strong><p>Kueue-style waves, resource envelopes, and priority ordering prevent historical replay from starving production training.</p></div>
           </div>
         </section>
+        <section class="panel demo-theater" data-testid="demo-theater">
+          <div class="evidence-head">
+            <div><h2>Judge Demo Theater</h2><p>Use this guided path to demo Airflow orchestration, Metaflow runtime evidence, recovery, and Kubernetes batch capacity like a production review.</p></div>
+            <span class="badge neutral">narrated demo</span>
+          </div>
+          <div class="theater-grid">
+            <div class="theater-stage" aria-live="polite">
+              <div><span id="theaterCue">Opening</span><strong id="theaterTitle">Separate scheduler and training concerns</strong><p id="theaterBody">Start by explaining why Airflow owns partitions, assets, and backfills while Metaflow owns the training graph.</p></div>
+              <div class="theater-actions">
+                <button type="button" class="cue active" data-demo-cue="0">Boundary</button>
+                <button type="button" class="cue" data-demo-cue="1">Backfill</button>
+                <button type="button" class="cue" data-demo-cue="2">Recover</button>
+                <button type="button" class="cue" data-demo-cue="3">Scale</button>
+              </div>
+            </div>
+            <div class="theater-panel">
+              <div class="theater-kpis">
+                <div><span>Video</span><strong>partition recovery walkthrough</strong></div>
+                <div><span>Voice</span><strong>edge-tts neural narration</strong></div>
+                <div><span>Signals</span><strong>runs, gates, cards, checkpoints</strong></div>
+                <div><span>Evidence</span><strong>Metaflow + Airflow artifacts</strong></div>
+              </div>
+              <div class="theater-progress"><span id="theaterProgress"></span></div>
+              <p id="theaterNotes" class="theater-notes">Reviewer path: run <code>make demo</code>, inspect failed partition recovery, then play <code>docs/demo/training-judge-demo.mp4</code>.</p>
+              <div class="theater-links">
+                <a href="../../docs/demo/training-judge-demo.mp4">Watch video</a>
+                <a href="../../docs/judge-demo.md">Demo script</a>
+                <a href="../../docs/demo-narration.txt">Narration text</a>
+                <a href="index.html">Artifact index</a>
+              </div>
+            </div>
+          </div>
+        </section>
+        <script>
+          function renderDemoTheater(index) {{
+            const cues = [
+              {{cue: "Boundary", title: "Separate scheduler and training concerns", body: "Start by explaining why Airflow owns partitions, assets, and backfills while Metaflow owns the training graph.", notes: "The senior story is ownership: calendars, retries, queues, and incidents are outside model code."}},
+              {{cue: "Backfill", title: "Show capacity-aware backfill planning", body: "Use the Backfill Capacity Lab to repack workloads and explain Kueue-style admission pressure.", notes: "Judges should see resource budgets and priority ordering, not a decorative DAG screenshot."}},
+              {{cue: "Recover", title: "Demonstrate failed partition recovery", body: "Move to checkpoint timelines, resume evidence, lineage, and Metaflow run cards.", notes: "Recovery is valuable because it preserves partition identity and avoids unsafe duplicate publishing."}},
+              {{cue: "Scale", title: "Close with production migration", body: "Connect local artifacts to Kubernetes pods, Airflow pools, object storage, registry contracts, and CI gates.", notes: "This proves the repo can be discussed as a platform, not just a notebook pipeline."}}
+            ];
+            const item = cues[index] || cues[0];
+            document.getElementById("theaterCue").textContent = item.cue;
+            document.getElementById("theaterTitle").textContent = item.title;
+            document.getElementById("theaterBody").textContent = item.body;
+            document.getElementById("theaterNotes").textContent = item.notes;
+            document.getElementById("theaterProgress").style.width = (((index + 1) / cues.length) * 100) + "%";
+            document.querySelectorAll("[data-demo-cue]").forEach((button) => button.classList.toggle("active", Number(button.dataset.demoCue) === index));
+          }}
+          document.querySelectorAll("[data-demo-cue]").forEach((button) => button.addEventListener("click", () => renderDemoTheater(Number(button.dataset.demoCue))));
+          renderDemoTheater(0);
+        </script>
         <section class="panel planner" data-testid="backfill-capacity-lab">
           <div class="planner-heading">
             <div><h2>Backfill Capacity Lab</h2><p>Repack the generated partition workloads under different queue budgets.</p></div>

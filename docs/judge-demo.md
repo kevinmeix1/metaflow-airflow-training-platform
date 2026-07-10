@@ -10,6 +10,10 @@ python3 -m http.server 8093 --bind 127.0.0.1 --directory .local/reports
 
 Open `http://127.0.0.1:8093/training_orchestration_dashboard.html`.
 
+The dashboard includes a **Judge Demo Theater** panel. Use it to keep the
+walkthrough tight: ownership boundary, backfill capacity, failed-partition
+recovery, and Kubernetes migration.
+
 ## Five-minute story
 
 1. Establish the Airflow and Metaflow ownership boundary and point to the generated health evidence.
@@ -31,3 +35,5 @@ make demo-video
 The natural neural voice is generated with `edge-tts`. The resulting video is
 `docs/demo/training-judge-demo.mp4`. Keep this media environment separate from
 the pinned Metaflow runtime so `make verify-metaflow-lock` remains exact.
+Offline voice engines such as Piper or Kokoro can be substituted, but
+`edge-tts` gives a natural judge-demo voice without committing model weights.
