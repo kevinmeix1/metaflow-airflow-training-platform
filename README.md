@@ -20,6 +20,7 @@ require a real cluster and shared infrastructure.
 | Deterministic local training control plane | `make demo` and unit tests | Executable |
 | Metaflow 2.19.29 training flow | `make metaflow-runtime-contract` | Executable in CI |
 | Four-way candidate `foreach`, gates, cards, artifacts | Metaflow run verifier and uploaded CI evidence | Executable in CI |
+| Failed publish, retry exhaustion, and `resume` lineage | `make metaflow-resume-contract` | Executable in CI |
 | Airflow 3.3 task and asset state DAG | `make airflow-sdk-contract` | SDK parse-verified in CI |
 | Metaflow-generated Airflow DAG | Official export command and environment contract | Deployment mapping |
 | Kueue, Kubernetes, DRA, KubeRay, GitOps, and policy assets | YAML and deterministic policy reports | Reference design |
@@ -44,14 +45,21 @@ Run the actual Metaflow engine and its executable contract:
 
 ```bash
 python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade "pip==25.3"
 .venv/bin/python -m pip install \
   --constraint requirements-metaflow.lock \
-  --editable ".[metaflow-runtime]"
+  "build==1.5.1" "setuptools==83.0.0" "wheel==0.47.0"
+.venv/bin/python -m pip install \
+  --no-build-isolation \
+  --constraint requirements-metaflow.lock \
+  --editable ".[metaflow-runtime,dev]"
 make metaflow-runtime-contract METAFLOW_PYTHON=.venv/bin/python
+make metaflow-resume-contract METAFLOW_PYTHON=.venv/bin/python
 ```
 
-The second command fails if the graph, fan-out, gate-aware selection, digests,
-cards, idempotency key, or published artifact set differs from the contract.
+The runtime commands fail if the graph, fan-out, gate-aware selection, digests,
+cards, idempotency key, published artifacts, retry attempts, or cloned resume
+lineage differ from the contract.
 
 ## Architecture
 
@@ -94,9 +102,11 @@ command-string wrapper.
 | `publish` | Write model, metrics, gates, comparison, and run contract | Atomic writes, stable registration key, card |
 | `end` | Expose the immutable result as a Metaflow artifact | Verified against the published contract |
 
-The verifier uses the Metaflow client API to inspect all seven steps and ten
-tasks. It also checks five rendered cards, source and model hashes, relative
-artifact paths, candidate uniqueness, and a single run-history publication.
+The verifiers use the Metaflow Client and Runner APIs to inspect all seven steps
+and ten tasks. They also check five rendered cards, source and model hashes,
+relative artifact paths, candidate uniqueness, a single run-history publication,
+retry exhaustion, origin pathspecs, and the fresh execution boundary after
+resume.
 
 See [Executable Metaflow Runtime](docs/executable-metaflow-runtime.md) for the
 contract and deployment details.
@@ -146,6 +156,10 @@ the Metaflow Deployer API does not deploy Airflow DAGs.
 - Model and report files use temp-file replacement so readers never observe a
   partially written JSON artifact.
 - Repeating publication for one Metaflow run produces one run-history record.
+- Repeating publication for one run returns the exact original contract; a
+  changed pathspec or payload under that run ID fails closed.
+- Resumed contracts record the origin run, failed boundary, and successful
+  publish retry count without copying large upstream artifacts.
 - `RUNTIME_CONTRACT_VERSION` must be bumped when training semantics or artifact
   schemas change, so retry identity cannot silently cross a code contract.
 
@@ -157,6 +171,18 @@ transaction that moves the model stage.
 
 The local demo creates a failed `2026-06-06` partition, records the incident,
 and recovers it with a forced replay while preserving both attempts.
+
+The executable Metaflow drill is stronger than the simulator:
+
+```bash
+make metaflow-resume-contract METAFLOW_PYTHON=.venv/bin/python
+```
+
+It forces `publish` to exhaust its initial attempt and two retries, resumes the
+specific failed run with the fault removed, proves eight upstream tasks were
+cloned from that origin, and proves only `publish` and `end` ran fresh. Candidate
+cards remain attached to the origin tasks; the verifier follows that lineage
+instead of expecting copied card files.
 
 Metaflow step artifacts are durable boundaries. Resume a failed local run with:
 
@@ -178,6 +204,9 @@ single failed state transition.
 | --- | --- |
 | `make demo` | Run deterministic backfill, failure, recovery, and report generation |
 | `make metaflow-runtime-contract` | Execute and verify the real Metaflow flow |
+| `make metaflow-resume-contract` | Inject a publish failure, resume it, and verify cloned lineage |
+| `make verify-metaflow-lock` | Reject missing, extra, or version-drifted runtime dependencies |
+| `make package-smoke` | Build with pinned tools and import the wheel with site packages disabled |
 | `make airflow-sdk-contract` | Parse and inspect Airflow 3.3 SDK DAGs |
 | `make run` | Run one fixed partition through the local control plane |
 | `make backfill` | Execute a fixed multi-partition backfill |
@@ -194,6 +223,8 @@ metaflow_flows/               Executable FlowSpec
 src/training_orchestration_platform/
                               Local control plane and policy evidence builders
 tools/verify_metaflow_run.py  Runtime evidence verifier
+tools/verify_metaflow_resume.py
+                              Failed-run and resume-lineage verifier
 kubernetes/                   Version-aware reference manifests and policies
 docs/                         Decisions, runbooks, and production mappings
 tests/                        Domain, failure, and contract tests
@@ -221,6 +252,8 @@ not additional claims of live infrastructure.
 - How a stable registration key prevents duplicate promotion after task retry.
 - Why Airflow should own backfill policy while model code remains portable.
 - Which state is sufficient to resume one failed partition safely.
+- Why resumed cards and artifacts should be followed through origin pathspecs
+  instead of physically duplicated into the new run.
 - Why Kubernetes manifests are reference designs until a cluster smoke test
   proves controller availability and runtime behavior.
 - When an existing Airflow estate justifies Metaflow export, and when Argo

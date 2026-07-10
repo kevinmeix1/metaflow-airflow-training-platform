@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from metaflow import (
@@ -21,6 +22,7 @@ from training_orchestration_platform.data import generate_partition, validate_ro
 from training_orchestration_platform.io import read_csv
 from training_orchestration_platform.metaflow_runtime import (
     DEFAULT_CANDIDATE_GRID,
+    RUNTIME_CONTRACT_VERSION,
     evaluate_candidate,
     normalize_candidate_grid,
     publish_runtime_artifacts,
@@ -69,7 +71,14 @@ class DemandTrainingFlow(FlowSpec):
         self.partition = str(self.ds)
         self.output_root = str(Path(str(self.output)).expanduser().resolve())
         self.candidate_configs = normalize_candidate_grid(self.candidates)
-        self.runtime_contract_version = "1.0"
+        self.runtime_contract_version = RUNTIME_CONTRACT_VERSION
+        failure_step = os.getenv("TRAINING_FAULT_STEP", "").strip()
+        fault_enabled = os.getenv("TRAINING_ENABLE_FAULT_INJECTION", "").strip() == "1"
+        if failure_step not in {"", "publish"}:
+            raise ValueError(f"unsupported training fault step: {failure_step}")
+        if failure_step and not fault_enabled:
+            raise ValueError("training fault injection requires explicit opt-in")
+        self.failure_injection_step = failure_step or None
         self.next(self.extract)
 
     @resources(cpu=1, memory=512)
@@ -160,6 +169,8 @@ class DemandTrainingFlow(FlowSpec):
         self.output_root = first.output_root
         self.manifest = first.manifest
         self.validation = first.validation
+        self.runtime_contract_version = first.runtime_contract_version
+        self.failure_injection_step = first.failure_injection_step
         self.candidate_results = [item.candidate_result for item in inputs]
         self.selected_candidate = select_candidate(self.candidate_results)
         self.next(self.publish)
@@ -170,6 +181,11 @@ class DemandTrainingFlow(FlowSpec):
     @timeout(seconds=30)
     @step
     def publish(self) -> None:
+        if (
+            os.getenv("TRAINING_ENABLE_FAULT_INJECTION", "").strip() == "1"
+            and os.getenv("TRAINING_FAULT_STEP", "").strip() == "publish"
+        ):
+            raise RuntimeError("injected publish failure for resume contract")
         self.runtime_contract = publish_runtime_artifacts(
             root=self.output_root,
             ds=self.partition,
@@ -181,6 +197,12 @@ class DemandTrainingFlow(FlowSpec):
             selected=self.selected_candidate,
             step_contract=STEP_CONTRACT,
             card_count=len(self.candidate_results) + 1,
+            runtime_contract_version=self.runtime_contract_version,
+            metaflow_origin_run_id=(
+                str(current.origin_run_id) if current.origin_run_id else None
+            ),
+            publish_retry_count=int(current.retry_count),
+            failure_injection_step=self.failure_injection_step,
         )
         current.card["selection"].append(Markdown("## Selected model"))
         current.card["selection"].append(

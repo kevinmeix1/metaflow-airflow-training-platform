@@ -9,6 +9,7 @@ from training_orchestration_platform.io import read_csv, read_json, read_jsonl
 from training_orchestration_platform.metaflow_runtime import (
     DEFAULT_CANDIDATE_GRID,
     CandidateSelectionError,
+    RUNTIME_CONTRACT_VERSION,
     canonical_hash,
     evaluate_candidate,
     normalize_candidate_grid,
@@ -97,14 +98,15 @@ class MetaflowRuntimeTest(unittest.TestCase):
                 "selected": selected,
                 "step_contract": ["start", "train_candidate", "end"],
                 "card_count": 5,
+                "runtime_contract_version": RUNTIME_CONTRACT_VERSION,
+                "metaflow_origin_run_id": None,
+                "publish_retry_count": 0,
+                "failure_injection_step": None,
             }
             first = publish_runtime_artifacts(**kwargs)
             second = publish_runtime_artifacts(**kwargs)
 
-            self.assertEqual(
-                first["registration_idempotency_key"],
-                second["registration_idempotency_key"],
-            )
+            self.assertEqual(first, second)
             self.assertEqual(first["model_digest"], canonical_hash(selected["model"]))
             self.assertFalse(Path(first["artifacts"]["model"]).is_absolute())
             self.assertTrue((root / first["artifacts"]["model"]).exists())
@@ -120,6 +122,67 @@ class MetaflowRuntimeTest(unittest.TestCase):
                     "registration_idempotency_key"
                 ],
                 first["registration_idempotency_key"],
+            )
+            self.assertEqual(
+                first["execution"],
+                {
+                    "resumed": False,
+                    "origin_run_id": None,
+                    "publish_retry_count": 0,
+                    "failure_injection_step": None,
+                },
+            )
+            mlflow_run = read_json(
+                root
+                / "mlruns"
+                / "daily-demand-forecasting"
+                / "metaflow-42"
+                / "run.json"
+            )
+            self.assertEqual(mlflow_run["execution"], first["execution"])
+
+            with self.assertRaisesRegex(RuntimeError, "publication contract changed"):
+                publish_runtime_artifacts(
+                    **{
+                        **kwargs,
+                        "metaflow_pathspec": "DemandTrainingFlow/42/publish/changed",
+                    }
+                )
+
+    def test_runtime_publication_records_resume_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            candidates, validation = self.candidates(root)
+            selected = select_candidate(candidates)
+            contract = publish_runtime_artifacts(
+                root=root,
+                ds="2026-06-08",
+                metaflow_run_id="43",
+                metaflow_pathspec="DemandTrainingFlow/43/publish/19",
+                manifest={
+                    "path": str(root / "sales.csv"),
+                    "content_sha256": "b" * 64,
+                    "idempotency_key": "daily-demand:2026-06-08",
+                },
+                validation=validation,
+                candidates=candidates,
+                selected=selected,
+                step_contract=["start", "train_candidate", "end"],
+                card_count=5,
+                runtime_contract_version=RUNTIME_CONTRACT_VERSION,
+                metaflow_origin_run_id="41",
+                publish_retry_count=1,
+                failure_injection_step="publish",
+            )
+
+            self.assertEqual(
+                contract["execution"],
+                {
+                    "resumed": True,
+                    "origin_run_id": "41",
+                    "publish_retry_count": 1,
+                    "failure_injection_step": "publish",
+                },
             )
 
     def test_model_candidate_parameters_are_bounded(self) -> None:

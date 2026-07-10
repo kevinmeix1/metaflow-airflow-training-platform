@@ -24,9 +24,14 @@ Install the exact tested dependency set:
 
 ```bash
 python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade "pip==25.3"
 .venv/bin/python -m pip install \
   --constraint requirements-metaflow.lock \
-  --editable ".[metaflow-runtime]"
+  "build==1.5.1" "setuptools==83.0.0" "wheel==0.47.0"
+.venv/bin/python -m pip install \
+  --no-build-isolation \
+  --constraint requirements-metaflow.lock \
+  --editable ".[metaflow-runtime,dev]"
 ```
 
 Then execute and verify the contract:
@@ -34,6 +39,7 @@ Then execute and verify the contract:
 ```bash
 make clean
 make metaflow-runtime-contract METAFLOW_PYTHON=.venv/bin/python
+make metaflow-resume-contract METAFLOW_PYTHON=.venv/bin/python
 ```
 
 The Make target configures an explicit local metadata and artifact root at
@@ -53,9 +59,12 @@ leak into an untracked repository-level `.metaflow` directory.
 6. Source and model SHA-256 digests reproduce from stored bytes and canonical
    JSON.
 7. Every artifact path is relative to the output root and exists.
-8. Four candidate cards and one selection card were rendered and are non-empty.
+8. Four candidate cards and one selection card were rendered and are non-empty;
+   a resumed run follows candidate cards through origin task pathspecs.
 9. The model registration key reproduces from immutable inputs.
 10. Exactly one pipeline event exists for the Metaflow run.
+11. A resume declares its origin run, clones every successful upstream task,
+    and executes only the failed `publish` boundary and `end` afresh.
 
 The verifier writes `.local/metaflow/verification.json`. GitHub Actions uploads
 the verification, datastore metadata, cards, candidate comparison, model,
@@ -75,6 +84,24 @@ Metaflow persists step artifacts, so a failed run can resume from the last
 successful boundary. A production scheduler should retain the origin run ID,
 partition, input digest, candidate digest, and registration key in incident
 metadata.
+
+`make metaflow-resume-contract` uses Metaflow's synchronous Runner API to start
+a controlled run with an explicit fault-injection opt-in and
+`TRAINING_FAULT_STEP=publish`. The publish task exhausts
+attempts `0`, `1`, and `2`. The verifier then removes the fault and resumes the
+explicit failed run ID. Client API `origin_pathspec` values prove that eight
+upstream tasks were cloned from the failed run, while `publish` and `end` have no
+origin pathspec and therefore ran fresh.
+
+Metaflow does not duplicate cards for cloned tasks into the resumed run's card
+directory. The evidence verifier deliberately resolves candidate cards from the
+origin run and the selection card from the resumed run. This preserves lineage
+without mistaking physical duplication for recovery correctness.
+
+Publication itself is retry-stable. If a run-specific contract already exists,
+the publisher preserves its timestamp and first successful retry count, verifies
+that the complete contract is unchanged, and returns the same bytes. A changed
+contract under the same run ID fails closed.
 
 `RUNTIME_CONTRACT_VERSION` is part of the registration key. Any change to model
 semantics or artifact shape must bump that version; CI should review the bump
@@ -130,7 +157,7 @@ Before describing this as a production training service, add evidence for:
 - transactional model registration with a unique idempotency key
 - secrets, network policy, retention, and data classification enforcement
 - OpenTelemetry correlation across Airflow, Metaflow, object storage, and MLflow
-- a controlled failed-task resume and duplicate-promotion drill
+- a cluster-backed worker loss and resume drill against remote metadata and artifacts
 - load and cost measurements from the target cluster
 
 ## Official References
@@ -139,5 +166,7 @@ Before describing this as a production training service, add evidence for:
 - [Scheduling Metaflow flows with Airflow](https://docs.metaflow.org/production/scheduling-metaflow-flows/scheduling-with-airflow)
 - [Metaflow step decorators](https://docs.metaflow.org/api/step-decorators)
 - [Metaflow cards](https://docs.metaflow.org/metaflow/visualizing-results/easy-custom-reports-with-card-components)
+- [Metaflow Runner API](https://docs.metaflow.org/metaflow/managing-flows/runner)
+- [Metaflow Client API and origin pathspecs](https://docs.metaflow.org/api/client)
 - [Metaflow checkpointing extension](https://docs.metaflow.org/scaling/checkpoint/introduction)
 - [Metaflow Deployer](https://docs.metaflow.org/metaflow/managing-flows/deployer)

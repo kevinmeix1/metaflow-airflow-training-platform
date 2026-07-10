@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .io import append_jsonl, read_jsonl
+from .io import append_jsonl, read_json, read_jsonl
 from .model import evaluate, evaluate_gates, train_forecaster
 from .orchestrator import run_log_path
 
@@ -205,7 +205,20 @@ def publish_runtime_artifacts(
     selected: dict[str, Any],
     step_contract: list[str],
     card_count: int,
+    runtime_contract_version: str,
+    metaflow_origin_run_id: str | None,
+    publish_retry_count: int,
+    failure_injection_step: str | None,
 ) -> dict[str, Any]:
+    if runtime_contract_version != RUNTIME_CONTRACT_VERSION:
+        raise ValueError(
+            "runtime contract version differs from the executable publisher"
+        )
+    if publish_retry_count < 0:
+        raise ValueError("publish retry count cannot be negative")
+    if failure_injection_step not in {None, "publish"}:
+        raise ValueError("unsupported failure injection step")
+
     root = Path(root).expanduser().resolve()
     comparison = candidate_comparison(candidates)
     model = selected["model"]
@@ -217,7 +230,7 @@ def publish_runtime_artifacts(
             "ds": ds,
             "input_manifest": manifest["content_sha256"],
             "candidate_config": selected["config_digest"],
-            "runtime_contract": RUNTIME_CONTRACT_VERSION,
+            "runtime_contract": runtime_contract_version,
         }
     )
 
@@ -233,6 +246,18 @@ def publish_runtime_artifacts(
         / "runtime_contract.json"
     )
 
+    existing_contract = read_json(contract_path) if contract_path.exists() else None
+    published_at = (
+        str(existing_contract["published_at"])
+        if existing_contract is not None
+        else utc_iso()
+    )
+    first_publish_retry_count = (
+        int(existing_contract["execution"]["publish_retry_count"])
+        if existing_contract is not None
+        else publish_retry_count
+    )
+
     write_json_atomic(model_path, model)
     write_json_atomic(metrics_path, metrics)
     write_json_atomic(gates_path, gates)
@@ -242,7 +267,7 @@ def publish_runtime_artifacts(
         return path.relative_to(root).as_posix()
 
     runtime_contract = {
-        "contract_version": RUNTIME_CONTRACT_VERSION,
+        "contract_version": runtime_contract_version,
         "engine": "metaflow",
         "metaflow_run_id": str(metaflow_run_id),
         "metaflow_pathspec": metaflow_pathspec,
@@ -259,6 +284,12 @@ def publish_runtime_artifacts(
         "selected_config_digest": selected["config_digest"],
         "model_digest": model_digest,
         "registration_idempotency_key": registration_key,
+        "execution": {
+            "resumed": metaflow_origin_run_id is not None,
+            "origin_run_id": metaflow_origin_run_id,
+            "publish_retry_count": first_publish_retry_count,
+            "failure_injection_step": failure_injection_step,
+        },
         "card_count": card_count,
         "artifacts": {
             "model": relative(model_path),
@@ -266,8 +297,13 @@ def publish_runtime_artifacts(
             "gates": relative(gates_path),
             "candidate_comparison": relative(comparison_path),
         },
-        "published_at": utc_iso(),
+        "published_at": published_at,
     }
+    if existing_contract is not None and runtime_contract != existing_contract:
+        raise RuntimeError(
+            "publication contract changed for an existing Metaflow run; "
+            "use a new run and bump the runtime contract when semantics change"
+        )
     write_json_atomic(contract_path, runtime_contract)
     write_json_atomic(root / "metaflow" / "latest.json", runtime_contract)
 
@@ -281,6 +317,7 @@ def publish_runtime_artifacts(
         "metrics": metrics,
         "artifacts": runtime_contract["artifacts"],
         "registration_idempotency_key": registration_key,
+        "execution": runtime_contract["execution"],
         "created_at": runtime_contract["published_at"],
     }
     write_json_atomic(
@@ -306,6 +343,7 @@ def publish_runtime_artifacts(
             "selected_candidate": selected["name"],
             "candidate_count": len(candidates),
             "registration_idempotency_key": registration_key,
+            "execution": runtime_contract["execution"],
         },
     }
     _append_once(

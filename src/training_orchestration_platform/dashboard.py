@@ -54,6 +54,12 @@ def compact_label(value: object) -> str:
     return f'<span class="nowrap" title="{esc(text)}">{esc(display)}</span>'
 
 
+def identifier_label(value: object, *, width: int = 12) -> str:
+    text = "" if value is None else str(value)
+    display = text if len(text) <= width else f"{text[:width]}..."
+    return f'<span class="nowrap" title="{esc(text)}">{esc(display)}</span>'
+
+
 def asset_label(value: object) -> str:
     text = "" if value is None else str(value)
     display = text.replace("_", " ").replace("-", " ")
@@ -94,7 +100,9 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     capacity_plan = read_json(root / "reports" / "backfill_capacity_plan.json") if (root / "reports" / "backfill_capacity_plan.json").exists() else {}
     runtime_contract = read_json(root / "metaflow" / "latest.json") if (root / "metaflow" / "latest.json").exists() else {}
     runtime_verification = read_json(root / "metaflow" / "verification.json") if (root / "metaflow" / "verification.json").exists() else {}
+    resume_verification = read_json(root / "metaflow" / "resume_verification.json") if (root / "metaflow" / "resume_verification.json").exists() else {}
     runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
+    resume_status = "success" if resume_verification.get("passed") else ("failed" if resume_verification else "not run")
     recent = [
         {
                 "date": row.get("ds"),
@@ -169,7 +177,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .facts {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; border-top:1px solid #e3e9f0; }}
         .fact {{ min-width:0; padding:13px 10px 13px 0; min-height:72px; border-bottom:1px solid #e3e9f0; }}
         .fact:nth-child(even) {{ padding-left:14px; border-left:1px solid #e3e9f0; }}
-        .fact span {{ display:block; color:#64748b; font-size:12px; margin-bottom:7px; }}
+        .fact > span {{ display:block; color:#64748b; font-size:12px; margin-bottom:7px; }}
         .fact strong {{ display:block; min-width:0; font-size:17px; overflow-wrap:anywhere; }}
         .fact .nowrap {{ display:block; width:100%; }}
         @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout {{ grid-template-columns:1fr; }} }}
@@ -188,6 +196,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           <div class="metric"><span>Latest partition</span><strong>{esc(successes[-1]['ds'] if successes else 'none')}</strong></div>
           <div class="metric"><span>Latest health</span><strong>{badge(latest_healthy)}</strong></div>
           <div class="metric"><span>Metaflow runtime</span><strong>{badge(runtime_verified)}</strong></div>
+          <div class="metric"><span>Recovery drill</span><strong>{status_badge(resume_status)}</strong></div>
         </section>
         <section class="layout">
           <div>
@@ -210,6 +219,19 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div class="fact"><span>Rendered cards</span><strong>{esc(runtime_verification.get('card_count', 0))}</strong></div>
                 <div class="fact"><span>Selected candidate</span><strong>{compact_label(runtime_contract.get('selected_candidate', 'none'))}</strong></div>
                 <div class="fact"><span>Registration key</span><strong>{compact_label(runtime_contract.get('registration_idempotency_key', 'none'))}</strong></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2>Failure Recovery Drill</h2>
+              <div class="facts">
+                <div class="fact"><span>Status</span><strong>{status_badge(resume_status)}</strong></div>
+                <div class="fact"><span>Failed boundary</span><strong>{compact_label(resume_verification.get('failed_step', 'not run'))}</strong></div>
+                <div class="fact"><span>Publish attempts</span><strong>{partition_chips(resume_verification.get('failed_publish_attempts', []))}</strong></div>
+                <div class="fact"><span>Cloned upstream tasks</span><strong>{esc(resume_verification.get('cloned_task_count', 'n/a'))}</strong></div>
+                <div class="fact"><span>Origin run</span><strong>{identifier_label(resume_verification.get('failed_run_id', 'not run'))}</strong></div>
+                <div class="fact"><span>Resumed run</span><strong>{identifier_label(resume_verification.get('resumed_run_id', 'not run'))}</strong></div>
+                <div class="fact"><span>Fresh steps</span><strong>{partition_chips(resume_verification.get('fresh_steps', []))}</strong></div>
+                <div class="fact"><span>Candidate</span><strong>{compact_label(resume_verification.get('selected_candidate', 'not run'))}</strong></div>
               </div>
             </div>
             <div class="panel">

@@ -1,6 +1,6 @@
 [project]
 name = "metaflow-airflow-training-platform"
-version = "0.2.0"
+dynamic = ["version"]
 requires-python = ">=3.11"
 dependencies = []
 
@@ -17,8 +17,11 @@ airflow33 = ["apache-airflow==3.3.0"]
 dev = ["ruff==0.15.21"]
 
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools==83.0.0", "wheel==0.47.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "training_orchestration_platform.__version__"}

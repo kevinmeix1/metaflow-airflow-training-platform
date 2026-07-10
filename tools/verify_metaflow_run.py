@@ -79,7 +79,13 @@ def verify_run(
     expected_selection = select_candidate(candidate_results)
 
     end_result = steps["end"][0].data.result
-    contract_path = output_root / "metaflow" / "latest.json"
+    contract_path = (
+        output_root
+        / "metaflow"
+        / "runs"
+        / str(run.id)
+        / "runtime_contract.json"
+    )
     require(contract_path.exists(), f"missing runtime contract: {contract_path}")
     contract = read_json(contract_path)
     require(contract == end_result, "end-step artifact and published contract differ")
@@ -106,6 +112,47 @@ def verify_run(
         "registration idempotency key is not reproducible",
     )
 
+    execution = contract.get("execution", {})
+    origin_run_id = execution.get("origin_run_id")
+    resumed = bool(execution.get("resumed"))
+    require(resumed == (origin_run_id is not None), "resume lineage fields disagree")
+    reusable_steps = {
+        "start",
+        "extract",
+        "validate",
+        "train_candidate",
+        "select_model",
+    }
+    cloned_tasks = [
+        task
+        for name, tasks in steps.items()
+        if name in reusable_steps
+        for task in tasks
+        if task.origin_pathspec is not None
+    ]
+    fresh_terminal_tasks = [
+        task
+        for name in ("publish", "end")
+        for task in steps[name]
+    ]
+    if resumed:
+        expected_prefix = f"DemandTrainingFlow/{origin_run_id}/"
+        reusable_task_count = sum(len(steps[name]) for name in reusable_steps)
+        require(
+            len(cloned_tasks) == reusable_task_count,
+            "resume did not clone every successful upstream task",
+        )
+        require(
+            all(str(task.origin_pathspec).startswith(expected_prefix) for task in cloned_tasks),
+            "a cloned task does not originate from the declared failed run",
+        )
+        require(
+            all(task.origin_pathspec is None for task in fresh_terminal_tasks),
+            "publish and end must execute fresh after resume",
+        )
+    else:
+        require(not cloned_tasks, "ordinary run unexpectedly contains cloned tasks")
+
     artifact_paths = {}
     for name, relative in contract["artifacts"].items():
         relative_path = Path(relative)
@@ -124,6 +171,29 @@ def verify_run(
         "candidate comparison is incomplete",
     )
 
+    mlflow_run_path = (
+        output_root
+        / "mlruns"
+        / "daily-demand-forecasting"
+        / f"metaflow-{run.id}"
+        / "run.json"
+    )
+    require(mlflow_run_path.is_file(), "MLflow-style handoff record is missing")
+    mlflow_run = read_json(mlflow_run_path)
+    require(
+        mlflow_run["registration_idempotency_key"]
+        == contract["registration_idempotency_key"],
+        "MLflow-style handoff registration key differs",
+    )
+    require(
+        mlflow_run["execution"] == contract["execution"],
+        "MLflow-style handoff lost resume lineage",
+    )
+    require(
+        mlflow_run["artifacts"] == contract["artifacts"],
+        "MLflow-style handoff artifact set differs",
+    )
+
     source_path = Path(contract["input_manifest"]["path"])
     require(source_path.is_file(), f"missing source partition: {source_path}")
     require(
@@ -131,7 +201,7 @@ def verify_run(
         "source partition digest differs",
     )
 
-    card_root = (
+    current_card_root = (
         datastore_root
         / ".metaflow"
         / "DemandTrainingFlow"
@@ -139,7 +209,33 @@ def verify_run(
         / str(run.id)
         / "steps"
     )
-    card_paths = sorted(card_root.glob("*/tasks/*/cards/*.html"))
+    current_card_paths = sorted(current_card_root.glob("*/tasks/*/cards/*.html"))
+    if resumed:
+        origin_card_root = (
+            datastore_root
+            / ".metaflow"
+            / "DemandTrainingFlow"
+            / "runs"
+            / str(origin_run_id)
+            / "steps"
+        )
+        candidate_card_paths = sorted(
+            origin_card_root.glob("train_candidate/tasks/*/cards/*candidate*.html")
+        )
+        selection_card_paths = [
+            path for path in current_card_paths if "selection" in path.name
+        ]
+        card_paths = candidate_card_paths + selection_card_paths
+        card_sources = {
+            "candidate": f"origin-run:{origin_run_id}",
+            "selection": f"resumed-run:{run.id}",
+        }
+    else:
+        card_paths = current_card_paths
+        card_sources = {
+            "candidate": f"run:{run.id}",
+            "selection": f"run:{run.id}",
+        }
     require(
         len(card_paths) == contract["card_count"],
         f"expected {contract['card_count']} cards, found {len(card_paths)}",
@@ -177,7 +273,11 @@ def verify_run(
         "selected_candidate": contract["selected_candidate"],
         "selected_model_version": contract["selected_model_version"],
         "registration_idempotency_key": contract["registration_idempotency_key"],
+        "resumed": resumed,
+        "origin_run_id": str(origin_run_id) if origin_run_id is not None else None,
+        "cloned_task_count": len(cloned_tasks),
         "card_count": len(card_paths),
+        "card_sources": card_sources,
         "model_digest": contract["model_digest"],
         "checks": [
             "successful run",
@@ -186,6 +286,8 @@ def verify_run(
             "gate-aware deterministic selection",
             "artifact and source digests",
             "registration idempotency",
+            "MLflow-style handoff identity and resume lineage",
+            "resume lineage and cloned-task boundary",
             "rendered Metaflow cards",
         ],
     }
