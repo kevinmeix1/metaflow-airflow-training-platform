@@ -43,6 +43,7 @@ from .io import read_jsonl
 from .orchestrator import backfill, run_log_path, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
 from .oci_artifact_volume import build_oci_artifact_volume_plan
+from .operational_readiness import build_operational_readiness_review
 from .pending_workload_visibility import build_pending_workload_visibility_plan
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
@@ -132,6 +133,7 @@ def demo(output: str | Path) -> dict:
         namespace="mlops-training",
     )
     release_admission = build_release_admission_decision(root)
+    operational_readiness = build_operational_readiness_review(root)
     artifact_index = render_artifact_index(
         root,
         title="Metaflow Airflow Training Platform",
@@ -195,6 +197,7 @@ def demo(output: str | Path) -> dict:
         "checkpoint_training": checkpoint_training,
         "ai_workload_telemetry": ai_workload_telemetry,
         "release_admission": release_admission,
+        "operational_readiness": operational_readiness,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,
