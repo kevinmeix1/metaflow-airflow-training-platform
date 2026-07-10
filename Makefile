@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -153,6 +153,9 @@ hpa-scale-zero:
 suspended-job-resources:
 	PYTHONPATH=src python3 -m training_orchestration_platform suspended-job-resources --output .local
 
+constrained-impersonation:
+	PYTHONPATH=src python3 -m training_orchestration_platform constrained-impersonation --output .local
+
 oci-artifact-volumes:
 	PYTHONPATH=src python3 -m training_orchestration_platform oci-artifact-volumes --output .local
 
@@ -202,6 +205,7 @@ ci-verify:
 	test -f .local/reports/memory_qos_plan.json
 	test -f .local/reports/hpa_scale_to_zero_plan.json
 	test -f .local/reports/suspended_job_resources_plan.json
+	test -f .local/reports/constrained_impersonation_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
 	test -f .local/reports/release_admission_decision.json
 	test -f .local/supply-chain/subject.checksums.txt
@@ -244,6 +248,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/memory_qos_plan.json >/dev/null
 	python3 -m json.tool .local/reports/hpa_scale_to_zero_plan.json >/dev/null
 	python3 -m json.tool .local/reports/suspended_job_resources_plan.json >/dev/null
+	python3 -m json.tool .local/reports/constrained_impersonation_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
 
@@ -288,6 +293,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/memory-qos.yaml"
 	@echo "  kubectl apply -f kubernetes/hpa-scale-to-zero.yaml"
 	@echo "  kubectl apply -f kubernetes/suspended-job-resources.yaml"
+	@echo "  kubectl apply -f kubernetes/constrained-impersonation.yaml"
 	@echo "  kubectl apply -f kubernetes/release-admission-policy.yaml"
 	@echo "  kubectl apply -f kubernetes/opencost-finops.yaml"
 	@echo "  kubectl apply -f gitops/gitops-promotion.yaml"

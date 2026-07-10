@@ -14,6 +14,7 @@ from training_orchestration_platform.cloud_migration import build_cloud_migratio
 from training_orchestration_platform.cli import demo
 from training_orchestration_platform.cohort_fair_sharing import build_cohort_fair_sharing_plan
 from training_orchestration_platform.control_plane_diagnostics import build_control_plane_diagnostics_plan
+from training_orchestration_platform.constrained_impersonation import build_constrained_impersonation_plan
 from training_orchestration_platform.cost_observability import build_cost_observability_report
 from training_orchestration_platform.dag_bundle_versioning import build_dag_bundle_versioning_plan
 from training_orchestration_platform.data import generate_partition, validate_rows
@@ -336,7 +337,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
 
         for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "constrained_impersonation_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
@@ -850,6 +851,24 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["ValidatingAdmissionPolicy", "suspend: true", "TrainingSuspendedJobResizeStale", "TrainingSuspendedJobUnsuspendWithoutQuotaFit"]:
             self.assertIn(expected, manifest)
 
+    def test_constrained_impersonation_plan_and_kubernetes_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        docs = (repo / "docs" / "constrained-impersonation.md").read_text(encoding="utf-8")
+        manifest = (repo / "kubernetes" / "constrained-impersonation.yaml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = build_constrained_impersonation_plan(root)
+
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "enable_constrained_impersonation_for_training_operations")
+            self.assertEqual(report["feature"]["name"], "ConstrainedImpersonation")
+            self.assertTrue(all(item["identity_permission"] == "impersonate:serviceaccount" for item in report["delegations"]))
+            self.assertTrue((root / "reports" / "constrained_impersonation_plan.json").exists())
+        for expected in ["Constrained Impersonation", "ConstrainedImpersonation", "impersonate:serviceaccount", "impersonate-on:serviceaccount:get", "impersonate-on:serviceaccount:patch", "authentication.k8s.io", "audit"]:
+            self.assertIn(expected, docs + manifest)
+        for expected in ["RoleBinding", "backfill-controller-impersonate-actions", "partition-status-writer", "ConfigMap", "TrainingLegacyImpersonateVerbDetected", "TrainingConstrainedImpersonationAuditMissing", "authenticationMetadata.impersonationConstraint"]:
+            self.assertIn(expected, manifest)
+
     def test_inference_gateway_plan_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         manifest = (repo / "kubernetes" / "inference-gateway-routing.yaml").read_text(encoding="utf-8")
@@ -984,6 +1003,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("memory_qos_tiered_protection", names)
             self.assertIn("hpa_scale_to_zero_external_metrics", names)
             self.assertIn("suspended_job_resource_mutation", names)
+            self.assertIn("constrained_impersonation_least_privilege", names)
             self.assertIn("supply_chain_provenance", names)
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
 
@@ -1057,6 +1077,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "memory_qos_plan.json",
                 "hpa_scale_to_zero_plan.json",
                 "suspended_job_resources_plan.json",
+                "constrained_impersonation_plan.json",
                 "release_admission_decision.json",
                 "resource_optimization.json",
                 "network_security.json",
@@ -1133,6 +1154,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((root / "reports" / "memory_qos_plan.json").exists())
             self.assertTrue((root / "reports" / "hpa_scale_to_zero_plan.json").exists())
             self.assertTrue((root / "reports" / "suspended_job_resources_plan.json").exists())
+            self.assertTrue((root / "reports" / "constrained_impersonation_plan.json").exists())
             self.assertTrue((root / "reports" / "release_admission_decision.json").exists())
             self.assertTrue((root / "reports" / "orchestration_scorecard.json").exists())
             self.assertTrue((root / "reports" / "supply_chain_evidence.json").exists())

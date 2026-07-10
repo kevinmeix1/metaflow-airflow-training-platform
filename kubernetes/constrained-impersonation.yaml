@@ -1,0 +1,158 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airflow-debugger-impersonate-identity
+  namespace: mlops-training
+rules:
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["serviceaccounts"]
+    resourceNames: ["training-reader"]
+    verbs: ["impersonate:serviceaccount"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backfill-controller-impersonate-identity
+  namespace: mlops-training
+rules:
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["serviceaccounts"]
+    resourceNames: ["partition-status-writer"]
+    verbs: ["impersonate:serviceaccount"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backfill-controller-impersonate-actions
+  namespace: mlops-training
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs/status"]
+    verbs:
+      - "impersonate-on:serviceaccount:get"
+      - "impersonate-on:serviceaccount:patch"
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs:
+      - "impersonate-on:serviceaccount:get"
+      - "impersonate-on:serviceaccount:patch"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backfill-controller-impersonate-identity
+  namespace: mlops-training
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backfill-controller-impersonate-identity
+subjects:
+  - kind: ServiceAccount
+    name: backfill-controller
+    namespace: mlops-training
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backfill-controller-impersonate-actions
+  namespace: mlops-training
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backfill-controller-impersonate-actions
+subjects:
+  - kind: ServiceAccount
+    name: backfill-controller
+    namespace: mlops-training
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airflow-debugger-impersonate-actions
+  namespace: mlops-training
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs/status"]
+    verbs:
+      - "impersonate-on:serviceaccount:get"
+      - "impersonate-on:serviceaccount:list"
+      - "impersonate-on:serviceaccount:watch"
+  - apiGroups: [""]
+    resources: ["pods/log", "configmaps"]
+    verbs:
+      - "impersonate-on:serviceaccount:get"
+      - "impersonate-on:serviceaccount:list"
+      - "impersonate-on:serviceaccount:watch"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airflow-debugger-impersonate-identity
+  namespace: mlops-training
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: airflow-debugger-impersonate-identity
+subjects:
+  - kind: ServiceAccount
+    name: airflow-debugger
+    namespace: mlops-training
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airflow-debugger-impersonate-actions
+  namespace: mlops-training
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: airflow-debugger-impersonate-actions
+subjects:
+  - kind: ServiceAccount
+    name: airflow-debugger
+    namespace: mlops-training
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: training-constrained-impersonation
+  namespace: mlops-training
+spec:
+  groups:
+    - name: training.constrained-impersonation
+      rules:
+        - alert: TrainingLegacyImpersonateVerbDetected
+          expr: max(training_rbac_legacy_impersonate_grants{namespace="mlops-training"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Legacy broad impersonate verb is present without constrained action grants
+        - alert: TrainingConstrainedImpersonationAuditMissing
+          expr: max(training_impersonation_audit_missing_constraint{namespace="mlops-training"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Impersonated training request is missing authenticationMetadata.impersonationConstraint
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: constrained-impersonation-audit-policy
+  namespace: mlops-training
+data:
+  audit-policy.yaml: |
+    apiVersion: audit.k8s.io/v1
+    kind: Policy
+    rules:
+      - level: Metadata
+        omitStages:
+          - RequestReceived
+        verbs:
+          - "impersonate:serviceaccount"
+          - "impersonate-on:serviceaccount:get"
+          - "impersonate-on:serviceaccount:patch"
+        resources:
+          - group: "authentication.k8s.io"
+            resources: ["serviceaccounts"]

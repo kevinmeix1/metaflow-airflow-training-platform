@@ -14,6 +14,7 @@ from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
 from .cohort_fair_sharing import build_cohort_fair_sharing_plan
 from .control_plane_diagnostics import build_control_plane_diagnostics_plan
+from .constrained_impersonation import build_constrained_impersonation_plan
 from .cost_observability import build_cost_observability_report
 from .dag_bundle_versioning import build_dag_bundle_versioning_plan
 from .dashboard import render_dashboard
@@ -113,6 +114,7 @@ def demo(output: str | Path) -> dict:
     memory_qos = build_memory_qos_plan(root)
     hpa_scale_to_zero = build_hpa_scale_to_zero_plan(root)
     suspended_job_resources = build_suspended_job_resource_plan(root)
+    constrained_impersonation = build_constrained_impersonation_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
@@ -180,6 +182,7 @@ def demo(output: str | Path) -> dict:
         "memory_qos": memory_qos,
         "hpa_scale_to_zero": hpa_scale_to_zero,
         "suspended_job_resources": suspended_job_resources,
+        "constrained_impersonation": constrained_impersonation,
         "oci_artifact_volume": oci_artifact_volume,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
@@ -316,6 +319,8 @@ def main(argv: list[str] | None = None) -> int:
     hpa_parser.add_argument("--output", default=".local")
     suspended_job_parser = sub.add_parser("suspended-job-resources")
     suspended_job_parser.add_argument("--output", default=".local")
+    constrained_impersonation_parser = sub.add_parser("constrained-impersonation")
+    constrained_impersonation_parser.add_argument("--output", default=".local")
     artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
     artifact_volume_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
@@ -423,6 +428,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_hpa_scale_to_zero_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "suspended-job-resources":
         print(json.dumps(build_suspended_job_resource_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "constrained-impersonation":
+        print(json.dumps(build_constrained_impersonation_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "oci-artifact-volumes":
         print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":
