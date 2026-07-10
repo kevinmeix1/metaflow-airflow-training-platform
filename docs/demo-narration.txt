@@ -8,6 +8,10 @@ The interactive Backfill Capacity Lab turns the committed plan into an operation
 
 The evidence view connects those decisions to real execution. Metaflow version 2.19.29 runs four candidates through a foreach fan-out, applies quality gates, selects a deterministic winner, renders cards, and publishes an immutable registration key. The repository verifies the run with the Metaflow Client and Runner APIs rather than trusting console text.
 
+The checkpoint training view then shows the platform side of expensive training. It plans persistent checkpoint volumes, retry boundaries, pod replacement behavior, queue priority, and artifact digests so failed GPU work can resume safely instead of rerunning from scratch. The Checkpoint Recovery Timeline is interactive: changing the selected job updates restore time, checkpoint write volume, SLA margin, queue priority, and replica facts.
+
+The event dedupe view closes another production gap. It shows how Airflow events, Metaflow task evidence, run identifiers, and publish keys are correlated so retries and backfills do not double-register the same model or hide a failed partition.
+
 The failure drill forces publish to exhaust its initial attempt and two retries. Resume then clones eight successful upstream tasks from the origin run and executes only publish and end. This preserves lineage, avoids paying for training twice, and proves that publication is idempotent.
 
 The production mapping adds Airflow 3.3 asset scheduling, Kubernetes jobs, Kueue admission and fair sharing, remote object storage, MLflow registration, workload identity, network policy, OpenTelemetry semantics, and disaster recovery evidence. The local implementation clearly labels what is executable and what requires shared cluster infrastructure.
