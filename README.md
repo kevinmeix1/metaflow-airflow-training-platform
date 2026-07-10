@@ -1,203 +1,231 @@
-# Metaflow + Airflow Training Orchestration Platform
+# Metaflow and Airflow Training Orchestration
 
 [![Training Orchestration CI](https://github.com/kevinmeix1/metaflow-airflow-training-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinmeix1/metaflow-airflow-training-platform/actions/workflows/ci.yml)
 
-A production-style training orchestration project that demonstrates partitioned backfills, retryable task runs, Metaflow-style training, Airflow scheduling, MLflow-style tracking, asset lineage, failure recovery, and training health observability.
+A local-first, production-style training control plane for partitioned demand
+forecasting. It demonstrates orchestration boundaries, bounded candidate
+fan-out, evaluation gates, artifact lineage, idempotent publication, backfills,
+and failed-partition recovery.
 
-The default demo runs locally with no external services. Airflow and Metaflow integration files show how the same lifecycle maps to production orchestration.
+This is a portfolio system, not a production service. The repository separates
+code that runs in local CI from Airflow and Kubernetes deployment designs that
+require a real cluster and shared infrastructure.
 
 ![Training orchestration dashboard](docs/screenshots/dashboard.png)
 
-## What This Demonstrates
+## Implementation Status
 
-- Daily partitioned training data
-- Backfills across date ranges
-- Idempotent reruns that skip successful partitions
-- Forced recovery runs for failed partitions
-- Retryable task-level metadata
-- Data validation gates
-- Metaflow-style train and evaluate flow
-- MLflow-style run and artifact logging
-- Asset catalog and lineage graph
-- Airflow DAG shape for scheduled catchup
-- Dashboard for run history, model quality, failures, and lineage
+| Capability | Evidence | Status |
+| --- | --- | --- |
+| Deterministic local training control plane | `make demo` and unit tests | Executable |
+| Metaflow 2.19.29 training flow | `make metaflow-runtime-contract` | Executable in CI |
+| Four-way candidate `foreach`, gates, cards, artifacts | Metaflow run verifier and uploaded CI evidence | Executable in CI |
+| Airflow 3.3 task and asset state DAG | `make airflow-sdk-contract` | SDK parse-verified in CI |
+| Metaflow-generated Airflow DAG | Official export command and environment contract | Deployment mapping |
+| Kueue, Kubernetes, DRA, KubeRay, GitOps, and policy assets | YAML and deterministic policy reports | Reference design |
+| MLflow service and remote object storage | Local compatible artifact contract | Deployment mapping |
+
+An integration name in a diagram does not mean that service is running. The
+status column above is the source of truth.
+
+## Quick Start
+
+The dependency-free demo exercises partition backfills, failure recovery,
+lineage, governance reports, and the dashboard:
+
+```bash
+make clean
+make demo
+make test
+open .local/reports/training_orchestration_dashboard.html
+```
+
+Run the actual Metaflow engine and its executable contract:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install \
+  --constraint requirements-metaflow.lock \
+  --editable ".[metaflow-runtime]"
+make metaflow-runtime-contract METAFLOW_PYTHON=.venv/bin/python
+```
+
+The second command fails if the graph, fan-out, gate-aware selection, digests,
+cards, idempotency key, or published artifact set differs from the contract.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A["Airflow daily schedule"] --> B["Partition extraction"]
-    B --> C["Data validation"]
-    C --> D["Metaflow training flow"]
-    D --> E["Model evaluation gates"]
-    E -->|pass| F["MLflow-style run"]
-    E -->|fail| G["Failed run metadata"]
-    F --> H["Asset catalog"]
-    G --> H
-    H --> I["Lineage graph"]
-    H --> J["Training dashboard"]
-    K["Backfill command"] --> B
+  subgraph CI["Executable local and CI path"]
+    INPUT["Partitioned sales data"] --> EXTRACT["extract"]
+    EXTRACT --> VALIDATE["validate contract"]
+    VALIDATE --> FANOUT["train_candidate foreach x4"]
+    FANOUT --> SELECT["select gated winner"]
+    SELECT --> PUBLISH["publish immutable result"]
+    PUBLISH --> CARDS["Metaflow cards"]
+    PUBLISH --> CONTRACT["runtime contract and digests"]
+    PUBLISH --> RUNS["MLflow-style local run artifact"]
+  end
+
+  subgraph PROD["Production deployment mapping"]
+    AIRFLOW["Airflow 3.3 schedule and backfill"] -. "generated DAG or Kubernetes task" .-> EXTRACT
+    OBJECTS["S3-compatible artifact store"] -. "remote Metaflow datastore" .-> PUBLISH
+    MLFLOW["MLflow registry"] -. "transactional registration" .-> PUBLISH
+    K8S["Kubernetes and Kueue"] -. "resource admission" .-> FANOUT
+  end
 ```
 
-## Quick Start
+Solid edges run locally. Dotted edges identify deployment work that is not
+claimed as an active local integration.
+
+## Executable Metaflow Contract
+
+`metaflow_flows/demand_training_flow.py` is a real `FlowSpec`, not a diagram or
+command-string wrapper.
+
+| Step | Responsibility | Failure policy |
+| --- | --- | --- |
+| `start` | Normalize the partition and bounded candidate grid | Reject malformed or duplicate candidates |
+| `extract` | Materialize the deterministic partition and content manifest | Two bounded retries, atomic manifest write |
+| `validate` | Enforce row, schema, numeric, and SKU contracts | Fail immediately because bad data is not transient |
+| `train_candidate` | Fan out four independent model configurations | Per-candidate resources, timeout, two retries, card |
+| `select_model` | Select the best gate-passing candidate deterministically | Fail closed when no candidate passes |
+| `publish` | Write model, metrics, gates, comparison, and run contract | Atomic writes, stable registration key, card |
+| `end` | Expose the immutable result as a Metaflow artifact | Verified against the published contract |
+
+The verifier uses the Metaflow client API to inspect all seven steps and ten
+tasks. It also checks five rendered cards, source and model hashes, relative
+artifact paths, candidate uniqueness, and a single run-history publication.
+
+See [Executable Metaflow Runtime](docs/executable-metaflow-runtime.md) for the
+contract and deployment details.
+
+## Airflow and Metaflow Boundary
+
+Airflow owns calendars, asset-triggered scheduling, catchup, backfill policy,
+cross-team dependencies, pools, and incident callbacks. Metaflow owns the model
+code graph, candidate fan-out, task artifacts, retry boundaries, and run lineage.
+
+The repository validates an Airflow 3.3 SDK DAG in CI. For an organization that
+already operates Airflow, Metaflow can also export this `FlowSpec` as a DAG:
 
 ```bash
-make demo
-make test
+set -a
+. airflow/metaflow-export.env
+set +a
+python metaflow_flows/demand_training_flow.py \
+  --with retry airflow create generated/demand_training_dag.py
 ```
 
-Open the generated dashboard:
-
-```bash
-open .local/reports/training_orchestration_dashboard.html
-```
-
-## Commands
-
-```bash
-make demo      # run initial backfill, idempotency check, failure drill, recovery, dashboard
-make backfill  # run a fixed example backfill
-make run       # run one fixed partition
-make dashboard # rebuild dashboard from existing metadata
-make test      # run tests
-```
-
-You can also call the CLI directly:
-
-```bash
-PYTHONPATH=src python3 -m training_orchestration_platform backfill --output .local --start 2026-06-01 --end 2026-06-05
-PYTHONPATH=src python3 -m training_orchestration_platform run --output .local --date 2026-06-06 --force
-```
-
-## Production-Grade Refinements
-
-See [production-grade refinements](docs/production-grade-refinements.md) for the asset-aware Airflow DAG, partition manifests, SHA-256 input fingerprints, lineage, and backfill semantics.
-
-For the latest training mesh orchestration pass, see [advanced orchestration assessment](docs/advanced-orchestration-assessment.md).
-
-For the Kubernetes/Airflow robustness layer, see [Kubernetes and Airflow robustness](docs/kubernetes-airflow-robustness.md).
-
-For the operator-facing backfill planner, see [advanced backfill control plane](docs/control-plane-depth.md).
-
-For Airflow 3 queue, runtime, and failed-partition Deadline Alerts with bounded callbacks, see [Airflow deadline alerts](docs/airflow-deadline-alerts.md).
-
-For OpenCost partition cost, backfill budgets, GPU training spend, retry-storm cost, and PVC artifact allocation, see [cost observability and FinOps](docs/cost-observability.md).
-
-For the policy-as-code audit layer, see [security and governance](docs/security-governance.md).
-
-For OpenTelemetry-style runtime traces, see [observability and tracing](docs/observability-tracing.md).
-
-For controlled failure injection and recovery objectives, see [resilience and chaos drills](docs/resilience-chaos.md).
-
-For workload right-sizing, HPA/VPA guardrails, and Airflow pool sizing, see [resource optimization](docs/resource-optimization.md).
-
-For runtime network boundaries, mTLS, and allow-listed service flows, see [network security](docs/network-security.md).
-
-For auditable environment promotion with Argo CD and Argo Rollouts, see [GitOps promotion](docs/gitops-promotion.md).
-
-For backup schedules, restore order, and RPO/RTO evidence, see [disaster recovery](docs/disaster-recovery.md).
-
-For model cards, partition data cards, risk controls, approval records, and reproducibility hashes, see [governance evidence](docs/governance-evidence.md).
-
-For training SLOs, partition failure burn, and backfill-freeze automation, see [SLO and error budget automation](docs/slo-error-budget.md).
-
-For EKS Auto Mode, Terraform, managed-service mappings, and portability notes, see [cloud migration](docs/cloud-migration.md).
-
-For GitHub artifact attestations, SLSA provenance, Sigstore policy-controller admission, and checksum evidence, see [supply chain provenance](docs/supply-chain-provenance.md).
-
-For an automated scan of advanced Airflow, Kubernetes, lineage, scaling, GitOps, and security controls, see [orchestration scorecard](docs/orchestration-scorecard.md).
-
-For GPU ResourceFlavors, Dynamic Resource Allocation notes, MIG/time-slicing trade-offs, and accelerator quota planning, see [accelerator scheduling](docs/accelerator-scheduling.md).
-
-For concrete DRA ResourceClaimTemplates, Kueue-coupled training admission, and CPU fallback paths, see [dynamic resource allocation](docs/dynamic-resource-allocation.md).
-
-For Kubernetes v1.36 DRA `ResourceHealthStatus`, `ResourceClaim.status.devices`, and device quarantine during training backfills, see [DRA resource health status](docs/dra-resource-health-status.md).
-
-For DRA prioritized alternatives, partitionable devices, consumable capacity, and binding-condition readiness for training backfills, see [DRA advanced device sharing](docs/dra-advanced-device-sharing.md).
-
-For Kubernetes v1.36 DRA `AdminAccess` diagnostics with Airflow map index, Metaflow run id, MLflow run id, and deterministic replay guardrails, see [Training DRA AdminAccess diagnostics](docs/dra-admin-access-diagnostics.md).
-
-For Kubernetes v1.35 in-place Pod Resize, v1.36 pod-level resource resizing, partition-lineage preservation, and VPA `InPlaceOrRecreate` guardrails, see [training in-place Pod resize controls](docs/inplace-pod-resize.md).
-
-For Kueue topology-aware backfills, rack-level placement, Airflow scheduler spread, and wave-splitting fallbacks, see [topology-aware scheduling](docs/topology-aware-scheduling.md).
-
-For elastic KubeRay backfill waves, Kueue admission, GPU worker bounds, and Metaflow recovery fallbacks, see [KubeRay and Kueue](docs/kuberay-kueue.md).
-
-For Kueue Workload Slices, JobSet elastic backfills, replacement slices, and recovery preemption, see [Kueue elastic workloads](docs/kueue-elastic-workloads.md).
-
-For Kubernetes Indexed Jobs, per-index retry budgets, `successPolicy`, `podFailurePolicy`, and Airflow 3 failed-only backfill recovery, see [indexed job resilience](docs/indexed-job-resilience.md).
-
-For Kueue ProvisioningRequest admission checks, physical autoscaler capacity guarantees, retry backoff, and fallback queueing, see [provisioning admission](docs/provisioning-admission.md).
-
-For Kubernetes pod-level resource envelopes, stable scheduling gates, manifest/artifact readiness checks, and scheduler-churn metrics, see [pod resource envelopes](docs/pod-resource-envelopes.md).
-
-For Kueue Fair Sharing, Admission Fair Sharing, training queue weights, borrowing/lending limits, and preemption guardrails, see [Kueue cohort fair sharing](docs/kueue-cohort-fair-sharing.md).
-
-For Kueue MultiKueue manager-to-worker training dispatch, cross-cluster quota alignment, worker status sync, and failover, see [MultiKueue dispatch](docs/multikueue-dispatch.md).
-
-For Kubernetes image-volume OCI artifact mounts, digest-pinned training inputs, read-only Metaflow bundles, warmup jobs, and PVC/S3 fallback semantics, see [OCI artifact volumes](docs/oci-artifact-volumes.md).
-
-For Airflow 3 GitDagBundle configuration, DAG versioning, scheduler-managed backfills, and failed-partition replay semantics, see [Airflow DAG Bundles](docs/airflow-dag-bundles.md).
-
-For Airflow 3.2 asset partitioning across dataset snapshots, Metaflow child flows, evaluation gates, and model-registration backfills, see [Airflow asset partitioning](docs/airflow-asset-partitioning.md).
-
-For Airflow 3.3 task/asset state stores, bounded manifest rollup and training fanout, runtime partitions, exception-aware retries, and a real SDK parse gate, see [Airflow stateful orchestration](docs/airflow-stateful-orchestration.md).
-
-For Airflow multi-team preview readiness with training-owned DAG Bundles, team-scoped pools/secrets, team triggerers, and asset-event filtering, see [Airflow multi-team readiness](docs/airflow-multi-team-readiness.md).
-
-For Gateway API Inference Extension handoff artifacts, stable `InferencePool`, Endpoint Picker fallback, and promoted champion route priorities, see [Gateway API Inference Extension](docs/inference-gateway.md).
-
-For Airflow 3 AssetWatchers, `BaseEventTrigger` contracts, shared-stream polling, `AssetAlias`, and conditional training asset expressions, see [event-driven assets](docs/event-driven-assets.md).
-
-For Airflow, Kueue, Metaflow, MLflow, OpenLineage, partition, and Kubernetes telemetry attributes with row redaction, see [semantic telemetry contract](docs/semantic-telemetry.md).
-
-For Kueue ResourceFlavor fallback, `TryNextFlavor` behavior, and training spot/on-demand/GPU trade-offs, see [Kueue flavor fungibility](docs/kueue-flavor-fungibility.md).
-
-For Kueue `VisibilityOnDemand`, pending workload API queries, backfill queue triage, and admission-wait alerts, see [Kueue pending workload visibility](docs/kueue-pending-workload-visibility.md).
-
-For Kubernetes v1.36 Workload/PodGroup readiness across partition backfills, HPO sweeps, failed-partition replay, topology constraints, DRA sharing, and workload-aware preemption, see [workload-aware scheduling](docs/workload-aware-scheduling.md).
-
-For Kubernetes v1.36 user namespaces, `hostUsers: false`, fine-grained kubelet authorization, and `nodes/proxy` regression prevention for training telemetry, see [runtime security](docs/runtime-security.md).
-
-For Kubernetes v1.36 controller staleness mitigation, `/statusz`, `/flagz`, PSI metrics, and native-histogram readiness for backfill automation, see [control plane diagnostics](docs/control-plane-diagnostics.md).
-
-For Kubernetes v1.36 Memory QoS tiered protection, `memoryReservationPolicy: TieredReservation`, cgroup v2, PSI, and `memory.high` guardrails for Airflow and Metaflow training, see [memory QoS](docs/memory-qos.md).
-
-For Kubernetes v1.36 HPA scale-to-zero, `HPAScaleToZero`, Object/External wake metrics, and cold-start budgets for elastic Metaflow workers, see [HPA scale to zero](docs/hpa-scale-to-zero.md).
-
-For Kubernetes v1.36 suspended Job resource mutation, `MutablePodResourcesForSuspendedJobs`, and queue-time CPU/memory/GPU right-sizing for partitioned backfills, HPO sweeps, and failed-partition replay before unsuspend, see [suspended Job resources](docs/suspended-job-resources.md).
-
-For Kubernetes v1.36 constrained impersonation, `ConstrainedImpersonation`, and least-privilege Airflow/backfill support with separate identity and action authorization, see [constrained impersonation](docs/constrained-impersonation.md).
-
-For training tenant quotas, Kueue cohorts, Airflow pools, recovery reservations, chargeback labels, and noisy-neighbor controls, see [multi-tenant fairness](docs/multi-tenant-fairness.md).
-
-For projected service-account tokens, External Secrets, SPIFFE identities, and keyless Airflow/Metaflow task access, see [workload identity](docs/workload-identity.md).
-
-For partition throughput, wave-packing, Airflow queue, and recovery regression gates, see [performance budgets](docs/performance-budgets.md).
-
-For Kueue quota pressure, indexed backfill priority, failed-partition preemption, GPU use, and Airflow pool examples, see [queue capacity simulation](docs/queue-capacity-simulation.md).
-
-For fail-closed backfill admission that combines SLOs, capacity planning, queue priority, governance, provenance, and recovery reservations, see [release admission control](docs/release-admission-control.md).
-
-## Airflow And Metaflow Split
-
-Airflow owns schedule, catchup, backfill policy, alerting, and dependency coordination. Metaflow owns the training flow boundaries: start, train, evaluate, artifact capture, and step retry behavior.
-
-The local implementation mirrors that split:
-
-- `airflow/dags/demand_training_dag.py` shows the DAG shape.
-- `metaflow_flows/demand_training_flow.py` shows the training flow shape.
-- `src/training_orchestration_platform/orchestrator.py` runs the local equivalent.
+Copy `airflow/metaflow-export.env.example` and supply a remote datastore and
+metadata service. Metaflow intentionally refuses local-datastore Airflow export
+because scheduler workers need shared artifacts.
+
+The generated DAG exposes `ds` as an Airflow parameter. Its committed
+`2026-06-08` default exists only to make local runs reproducible. Production
+dispatch must map the Airflow data interval or asset partition key into `ds`.
+Running scheduled exports with the default would retrain the same partition, so
+the stateful Airflow DAG remains the preferred production partition owner.
+
+The generated-DAG path supports `foreach`, but not nested `foreach`. Metaflow
+conditional and recursive steps are not supported by its Airflow exporter. The
+generated file must be deployed through the Airflow DAG distribution mechanism;
+the Metaflow Deployer API does not deploy Airflow DAGs.
+
+## Reliability Model
+
+- Input manifests carry SHA-256 content fingerprints and partition idempotency
+  keys.
+- Candidate names and parameter bounds are validated before fan-out.
+- Data contract failures are terminal; extraction and publication failures are
+  retryable and bounded.
+- Promotion fails closed when every candidate misses an evaluation gate.
+- The registration key hashes the partition, input content, selected config,
+  and runtime contract version.
+- Model and report files use temp-file replacement so readers never observe a
+  partially written JSON artifact.
+- Repeating publication for one Metaflow run produces one run-history record.
+- `RUNTIME_CONTRACT_VERSION` must be bumped when training semantics or artifact
+  schemas change, so retry identity cannot silently cross a code contract.
+
+The local JSONL history assumes one publisher. A production registry must
+enforce the registration key with a database uniqueness constraint in the same
+transaction that moves the model stage.
 
 ## Failure Recovery
 
-The demo intentionally creates a failed training run for `2026-06-06`, then reruns that partition with `force=True`. The run history keeps both records, so reviewers can see the failure and recovery trail.
+The local demo creates a failed `2026-06-06` partition, records the incident,
+and recovers it with a forced replay while preserving both attempts.
+
+Metaflow step artifacts are durable boundaries. Resume a failed local run with:
+
+```bash
+METAFLOW_DEFAULT_DATASTORE=local \
+METAFLOW_DATASTORE_SYSROOT_LOCAL="$PWD/.local/metaflow/datastore" \
+PYTHONPATH="$PWD/src" \
+.venv/bin/python metaflow_flows/demand_training_flow.py \
+  resume --origin-run-id RUN_ID
+```
+
+In Airflow, retry only the failed partition/task instance and preserve the
+original run and partition identifiers. Do not rerun a broad backfill to hide a
+single failed state transition.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `make demo` | Run deterministic backfill, failure, recovery, and report generation |
+| `make metaflow-runtime-contract` | Execute and verify the real Metaflow flow |
+| `make airflow-sdk-contract` | Parse and inspect Airflow 3.3 SDK DAGs |
+| `make run` | Run one fixed partition through the local control plane |
+| `make backfill` | Execute a fixed multi-partition backfill |
+| `make plan-backfill` | Build bounded backfill waves and skipped-partition evidence |
+| `make dashboard` | Regenerate the reviewer dashboard from current artifacts |
+| `make test` | Run domain, failure, manifest, and runtime unit tests |
+| `make ci-verify` | Validate the complete generated evidence bundle |
+
+## Repository Map
+
+```text
+airflow/dags/                 Airflow 3.3 and deployment DAG contracts
+metaflow_flows/               Executable FlowSpec
+src/training_orchestration_platform/
+                              Local control plane and policy evidence builders
+tools/verify_metaflow_run.py  Runtime evidence verifier
+kubernetes/                   Version-aware reference manifests and policies
+docs/                         Decisions, runbooks, and production mappings
+tests/                        Domain, failure, and contract tests
+```
+
+## Selected Design Notes
+
+- [Airflow 3.3 Stateful Orchestration](docs/airflow-stateful-orchestration.md)
+- [Production Refinements](docs/production-grade-refinements.md)
+- [Kubernetes and Airflow Robustness](docs/kubernetes-airflow-robustness.md)
+- [Advanced Backfill Control Plane](docs/control-plane-depth.md)
+- [SLO and Error Budget Automation](docs/slo-error-budget.md)
+- [Supply Chain Provenance](docs/supply-chain-provenance.md)
+- [Workload-Aware Scheduling](docs/workload-aware-scheduling.md)
+- [Cloud Migration](docs/cloud-migration.md)
+
+The remaining documents are focused reference designs under `docs/`; they are
+not additional claims of live infrastructure.
 
 ## Interview Talking Points
 
-- Why backfills should be idempotent by partition.
-- How Airflow catchup differs from a model retraining trigger.
-- Why Metaflow is useful for artifact lineage and step retry.
-- How MLflow run metadata connects model artifacts to training data.
-- How to design run tables for incident response.
-- How asset lineage answers "what downstream model used this partition?"
+- Why invalid data should not consume retries intended for transient failures.
+- Why `foreach` artifacts make candidate lineage easier to inspect than an
+  opaque hyperparameter loop inside one task.
+- How a stable registration key prevents duplicate promotion after task retry.
+- Why Airflow should own backfill policy while model code remains portable.
+- Which state is sufficient to resume one failed partition safely.
+- Why Kubernetes manifests are reference designs until a cluster smoke test
+  proves controller availability and runtime behavior.
+- When an existing Airflow estate justifies Metaflow export, and when Argo
+  Workflows is the cleaner Metaflow deployment target.
+
+The senior signal in this project is the boundary: a small executable core with
+strong evidence, plus explicit production mappings that are not misrepresented
+as running services.

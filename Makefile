@@ -1,4 +1,10 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard metaflow-run metaflow-verify metaflow-runtime-contract policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+
+PYTHON ?= python3
+METAFLOW_PYTHON ?= $(PYTHON)
+METAFLOW_RUN_DATE ?= 2026-06-08
+METAFLOW_DATASTORE_ROOT := $(CURDIR)/.local/metaflow/datastore
+METAFLOW_ENV := METAFLOW_DEFAULT_DATASTORE=local METAFLOW_DATASTORE_SYSROOT_LOCAL="$(METAFLOW_DATASTORE_ROOT)" METAFLOW_CARD_LOCALROOT="$(METAFLOW_DATASTORE_ROOT)" METAFLOW_DEFAULT_METADATA=local PYTHONPATH="$(CURDIR)/src"
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -14,6 +20,15 @@ plan-backfill:
 
 dashboard:
 	PYTHONPATH=src python3 -m training_orchestration_platform dashboard --output .local
+
+metaflow-run:
+	mkdir -p "$(METAFLOW_DATASTORE_ROOT)"
+	$(METAFLOW_ENV) "$(METAFLOW_PYTHON)" metaflow_flows/demand_training_flow.py run --max-workers 4 --ds "$(METAFLOW_RUN_DATE)" --output "$(CURDIR)/.local"
+
+metaflow-verify:
+	$(METAFLOW_ENV) "$(METAFLOW_PYTHON)" tools/verify_metaflow_run.py --output "$(CURDIR)/.local" --datastore-root "$(METAFLOW_DATASTORE_ROOT)" --expected-candidates 4
+
+metaflow-runtime-contract: metaflow-run metaflow-verify dashboard
 
 policy-audit:
 	PYTHONPATH=src python3 -m training_orchestration_platform policy-audit --output .local
@@ -310,4 +325,4 @@ test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 clean:
-	rm -rf .local
+	rm -rf .local .metaflow

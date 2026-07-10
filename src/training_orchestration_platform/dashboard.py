@@ -92,6 +92,9 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     assets = read_json(root / "orchestration" / "asset_catalog.json") if (root / "orchestration" / "asset_catalog.json").exists() else {}
     lineage = read_json(root / "orchestration" / "lineage.json") if (root / "orchestration" / "lineage.json").exists() else {}
     capacity_plan = read_json(root / "reports" / "backfill_capacity_plan.json") if (root / "reports" / "backfill_capacity_plan.json").exists() else {}
+    runtime_contract = read_json(root / "metaflow" / "latest.json") if (root / "metaflow" / "latest.json").exists() else {}
+    runtime_verification = read_json(root / "metaflow" / "verification.json") if (root / "metaflow" / "verification.json").exists() else {}
+    runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
     recent = [
         {
                 "date": row.get("ds"),
@@ -111,6 +114,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
             {
                 "date": row.get("ds"),
                 "model": compact_label(details.get("model_version")),
+                "engine": compact_label(details.get("engine", "local")),
                 "gates": badge(gates.get("passed", False)),
                 "rmse": metrics.get("rmse"),
                 "mape": metrics.get("mape"),
@@ -136,14 +140,19 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .metric span {{ display:block; color:#5b6b7d; font-size:13px; margin-bottom:10px; }}
         .metric strong {{ display:block; font-size:24px; line-height:1.2; overflow-wrap:anywhere; }}
         .layout {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,.42fr); gap:16px; align-items:start; }}
+        .layout > div, .panel {{ min-width:0; }}
         .panel {{ padding:16px; margin-top:16px; }}
         table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
         th, td {{ border-bottom:1px solid #e8edf3; padding:11px 12px; text-align:left; font-size:14px; overflow-wrap:anywhere; vertical-align:top; }}
         th {{ background:#f8fafc; color:#334155; }}
         tr:last-child td {{ border-bottom:0; }}
-        .model-runs col:nth-child(1) {{ width:20%; }}
-        .model-runs col:nth-child(2) {{ width:24%; }}
-        .model-runs col:nth-child(3) {{ width:20%; }}
+        .table-wrap {{ width:100%; max-width:100%; overflow-x:auto; border:1px solid #e8edf3; }}
+        table {{ min-width:620px; }}
+        .model-runs {{ min-width:760px; }}
+        .model-runs col:nth-child(1) {{ width:17%; }}
+        .model-runs col:nth-child(2) {{ width:25%; }}
+        .model-runs col:nth-child(3) {{ width:16%; }}
+        .model-runs col:nth-child(4) {{ width:14%; }}
         .events col:nth-child(1) {{ width:20%; }}
         .events col:nth-child(2) {{ width:28%; }}
         .events col:nth-child(3) {{ width:20%; }}
@@ -157,17 +166,20 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
         .chip {{ display:inline-block; margin:0 5px 5px 0; padding:4px 8px; border-radius:999px; background:#ecfdf5; color:#166534; font-size:12px; font-weight:800; white-space:nowrap; }}
         .chip.muted {{ background:#f1f5f9; color:#475569; }}
         .nowrap {{ display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }}
-        .summary {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }}
-        .summary div {{ border:1px solid #e3e9f0; border-radius:6px; padding:12px; min-height:74px; }}
-        .summary span {{ display:block; color:#64748b; font-size:12px; margin-bottom:8px; }}
-        .summary strong {{ display:block; font-size:18px; overflow-wrap:anywhere; }}
+        .facts {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; border-top:1px solid #e3e9f0; }}
+        .fact {{ min-width:0; padding:13px 10px 13px 0; min-height:72px; border-bottom:1px solid #e3e9f0; }}
+        .fact:nth-child(even) {{ padding-left:14px; border-left:1px solid #e3e9f0; }}
+        .fact span {{ display:block; color:#64748b; font-size:12px; margin-bottom:7px; }}
+        .fact strong {{ display:block; min-width:0; font-size:17px; overflow-wrap:anywhere; }}
+        .fact .nowrap {{ display:block; width:100%; }}
         @media (max-width:900px) {{ header {{ padding:22px 18px; }} main {{ padding:18px; }} .layout {{ grid-template-columns:1fr; }} }}
+        @media (max-width:540px) {{ .facts {{ grid-template-columns:1fr; }} .fact:nth-child(even) {{ padding-left:0; border-left:0; }} }}
       </style>
     </head>
     <body>
       <header>
         <h1>Metaflow + Airflow Training Platform</h1>
-        <p>Partitioned backfills, retryable task runs, MLflow-style tracking, asset lineage, and training health observability.</p>
+        <p>Partitioned training, bounded candidate fan-out, evaluation gates, recovery evidence, and orchestration health.</p>
       </header>
       <main>
         <section class="grid">
@@ -175,40 +187,52 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           <div class="metric"><span>Failed runs</span><strong>{len(failures)}</strong></div>
           <div class="metric"><span>Latest partition</span><strong>{esc(successes[-1]['ds'] if successes else 'none')}</strong></div>
           <div class="metric"><span>Latest health</span><strong>{badge(latest_healthy)}</strong></div>
+          <div class="metric"><span>Metaflow runtime</span><strong>{badge(runtime_verified)}</strong></div>
         </section>
         <section class="layout">
           <div>
             <div class="panel">
               <h2>Model Runs</h2>
-              <table class="model-runs"><colgroup><col><col><col><col><col></colgroup><tr><th>Date</th><th>Model</th><th>Gates</th><th>RMSE</th><th>MAPE</th></tr>{rows(model_rows, ['date', 'model', 'gates', 'rmse', 'mape'])}</table>
+              <div class="table-wrap"><table class="model-runs"><colgroup><col><col><col><col><col><col></colgroup><tr><th>Date</th><th>Model</th><th>Engine</th><th>Gates</th><th>RMSE</th><th>MAPE</th></tr>{rows(model_rows, ['date', 'model', 'engine', 'gates', 'rmse', 'mape'])}</table></div>
             </div>
             <div class="panel">
               <h2>Recent Orchestration Events</h2>
-              <table class="events"><colgroup><col><col><col><col><col></colgroup><tr><th>Date</th><th>Task</th><th>Status</th><th>Run</th><th>Time</th></tr>{rows(recent, ['date', 'task', 'status', 'run', 'time'])}</table>
+              <div class="table-wrap"><table class="events"><colgroup><col><col><col><col><col></colgroup><tr><th>Date</th><th>Task</th><th>Status</th><th>Run</th><th>Time</th></tr>{rows(recent, ['date', 'task', 'status', 'run', 'time'])}</table></div>
             </div>
           </div>
           <div>
             <div class="panel">
+              <h2>Executable Metaflow Run</h2>
+              <div class="facts">
+                <div class="fact"><span>Runtime</span><strong>{esc(runtime_verification.get('metaflow_version', 'not run'))}</strong></div>
+                <div class="fact"><span>Run contract</span><strong>{badge(runtime_verified)}</strong></div>
+                <div class="fact"><span>Candidate fan-out</span><strong>{esc(runtime_contract.get('candidate_count', 0))} / {esc(runtime_contract.get('passing_candidate_count', 0))} passing</strong></div>
+                <div class="fact"><span>Rendered cards</span><strong>{esc(runtime_verification.get('card_count', 0))}</strong></div>
+                <div class="fact"><span>Selected candidate</span><strong>{compact_label(runtime_contract.get('selected_candidate', 'none'))}</strong></div>
+                <div class="fact"><span>Registration key</span><strong>{compact_label(runtime_contract.get('registration_idempotency_key', 'none'))}</strong></div>
+              </div>
+            </div>
+            <div class="panel">
               <h2>Backfill Capacity Plan</h2>
-              <div class="summary">
-                <div><span>Workloads</span><strong>{esc(capacity_plan.get('workload_count', 'n/a'))}</strong></div>
-                <div><span>Waves</span><strong>{esc(capacity_plan.get('wave_count', 'n/a'))}</strong></div>
-                <div><span>Queue</span><strong>{compact_label(capacity_plan.get('queue', 'n/a'))}</strong></div>
-                <div><span>Skipped partitions</span><strong>{partition_chips(capacity_plan.get('skipped_partitions', []))}</strong></div>
+              <div class="facts">
+                <div class="fact"><span>Workloads</span><strong>{esc(capacity_plan.get('workload_count', 'n/a'))}</strong></div>
+                <div class="fact"><span>Waves</span><strong>{esc(capacity_plan.get('wave_count', 'n/a'))}</strong></div>
+                <div class="fact"><span>Queue</span><strong>{compact_label(capacity_plan.get('queue', 'n/a'))}</strong></div>
+                <div class="fact"><span>Skipped partitions</span><strong>{partition_chips(capacity_plan.get('skipped_partitions', []))}</strong></div>
               </div>
             </div>
             <div class="panel">
               <h2>Asset Catalog</h2>
-              <div class="summary">
-                <div><span>Assets</span><strong>{len(assets)}</strong></div>
-                <div><span>Lineage edges</span><strong>{sum(len(v) for v in lineage.values())}</strong></div>
-                <div><span>Latest model partition</span><strong>{esc(assets.get('daily_demand_model', {}).get('latest_successful_partition'))}</strong></div>
-                <div><span>Failed DAG runs</span><strong>{esc(assets.get('airflow_training_dag', {}).get('failed_runs', 0))}</strong></div>
+              <div class="facts">
+                <div class="fact"><span>Assets</span><strong>{len(assets)}</strong></div>
+                <div class="fact"><span>Lineage edges</span><strong>{sum(len(v) for v in lineage.values())}</strong></div>
+                <div class="fact"><span>Latest model partition</span><strong>{esc(assets.get('daily_demand_model', {}).get('latest_successful_partition'))}</strong></div>
+                <div class="fact"><span>Failed DAG runs</span><strong>{esc(assets.get('airflow_training_dag', {}).get('failed_runs', 0))}</strong></div>
               </div>
             </div>
             <div class="panel">
               <h2>Lineage</h2>
-              <table><tr><th>Asset</th><th>Downstream</th></tr>{rows([{'asset': asset_label(k), 'downstream': asset_label(', '.join(v))} for k, v in lineage.items()], ['asset', 'downstream'])}</table>
+              <div class="table-wrap"><table><tr><th>Asset</th><th>Downstream</th></tr>{rows([{'asset': asset_label(k), 'downstream': asset_label(', '.join(v))} for k, v in lineage.items()], ['asset', 'downstream'])}</table></div>
             </div>
           </div>
         </section>

@@ -6,9 +6,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-  attestations: write
-  artifact-metadata: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +15,11 @@ jobs:
   demo-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -102,6 +104,61 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-path: ${{ github.workspace }}/.local/reports/**
+
+  metaflow-runtime-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-metaflow.lock
+      - name: Install the constrained Metaflow runtime
+        run: python -m pip install --constraint requirements-metaflow.lock --editable ".[metaflow-runtime,dev]"
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Lint Python contracts
+        run: ruff check .
+      - name: Execute and verify the Metaflow contract
+        run: make metaflow-runtime-contract
+      - name: Publish runtime summary
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          path = Path(".local/metaflow/verification.json")
+          print("### Executable Metaflow contract")
+          print()
+          if not path.exists():
+              print("Runtime verification did not produce evidence.")
+              raise SystemExit(0)
+          result = json.loads(path.read_text())
+          print(f"- Metaflow: {result['metaflow_version']}")
+          print(f"- Run: `{result['run_id']}`")
+          print(f"- Graph: {result['step_count']} steps / {result['task_count']} tasks")
+          print(f"- Candidate fan-out: {result['candidate_count']}")
+          print(f"- Selected: `{result['selected_candidate']}`")
+          print(f"- Rendered cards: {result['card_count']}")
+          PY
+      - name: Upload Metaflow runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: executable-metaflow-runtime
+          path: |
+            .local/metaflow
+            .local/models
+            .local/mlruns/daily-demand-forecasting
+            .local/reports/metaflow_*.json
+            .local/reports/candidate_comparison_*.json
+            .local/reports/training_orchestration_dashboard.html
+          if-no-files-found: error
 
   airflow-33-sdk-contract:
     runs-on: ubuntu-latest

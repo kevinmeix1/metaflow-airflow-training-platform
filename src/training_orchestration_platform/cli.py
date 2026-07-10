@@ -37,7 +37,8 @@ from .memory_qos import build_memory_qos_plan
 from .multi_team_readiness import build_multi_team_readiness_plan
 from .multikueue_dispatch import build_multikueue_dispatch_plan
 from .network_security import build_network_security_report
-from .orchestrator import backfill, run_partition
+from .io import read_jsonl
+from .orchestrator import backfill, run_log_path, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
 from .oci_artifact_volume import build_oci_artifact_volume_plan
 from .pending_workload_visibility import build_pending_workload_visibility_plan
@@ -195,6 +196,40 @@ def demo(output: str | Path) -> dict:
     }
 
 
+def demo_summary(output: str | Path, result: dict) -> dict:
+    root = Path(output)
+    pipeline_events = [
+        item
+        for item in read_jsonl(run_log_path(root))
+        if item.get("task") == "pipeline"
+    ]
+    return {
+        "status": "completed",
+        "pipeline": {
+            "successful_runs": sum(
+                item.get("status") == "success" for item in pipeline_events
+            ),
+            "failed_runs": sum(
+                item.get("status") == "failed" for item in pipeline_events
+            ),
+            "recovered_partition": result["recovery"]["ds"],
+        },
+        "control_plane": {
+            "orchestration_score": result["orchestration_scorecard"]["score"],
+            "release_action": result["release_admission"]["decision"][
+                "recommended_action"
+            ],
+            "release_freeze": result["slo_error_budget"]["release_freeze"],
+        },
+        "artifacts": {
+            "report_count": len(list((root / "reports").glob("*"))),
+            "dashboard": result["dashboard"],
+            "index": result["artifact_index"],
+        },
+        "next_command": "make metaflow-runtime-contract",
+    }
+
+
 def governance(output: str | Path) -> dict:
     root = Path(output)
     if not (root / "orchestration" / "asset_catalog.json").exists():
@@ -332,7 +367,8 @@ def main(argv: list[str] | None = None) -> int:
     admission_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
-        print(json.dumps(demo(args.output), indent=2, sort_keys=True))
+        result = demo(args.output)
+        print(json.dumps(demo_summary(args.output, result), indent=2, sort_keys=True))
     elif args.command == "run":
         print(json.dumps(run_partition(args.output, args.date, force=args.force), indent=2, sort_keys=True))
     elif args.command == "backfill":
