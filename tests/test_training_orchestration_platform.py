@@ -706,8 +706,10 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(report["recommended_action"], "enable_airflow3_training_event_assets")
             self.assertEqual(report["asset_expression"], "(RAW_SALES & PARTITION_MANIFESTS) | FAILED_PARTITION_REPLAY")
             self.assertTrue(all(asset["trigger_base_class"] == "BaseEventTrigger" for asset in report["event_assets"]))
+            self.assertTrue(report["ha_watcher_dedupe_simulation"]["passed"])
+            self.assertEqual(report["ha_watcher_dedupe_simulation"]["suppressed_duplicates"], 2)
             self.assertTrue((root / "reports" / "event_driven_assets_plan.json").exists())
-        for expected in ["AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias", "conditional asset expression"]:
+        for expected in ["AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias", "conditional asset expression", "HA triggerer duplicate suppression"]:
             self.assertIn(expected, docs)
         for expected in ["EVENT_DRIVEN_ASSET_EXPRESSION", "AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias"]:
             self.assertIn(expected, dag)

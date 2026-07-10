@@ -102,6 +102,8 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     runtime_contract = read_json(root / "metaflow" / "latest.json") if (root / "metaflow" / "latest.json").exists() else {}
     runtime_verification = read_json(root / "metaflow" / "verification.json") if (root / "metaflow" / "verification.json").exists() else {}
     resume_verification = read_json(root / "metaflow" / "resume_verification.json") if (root / "metaflow" / "resume_verification.json").exists() else {}
+    event_assets = read_json(root / "reports" / "event_driven_assets_plan.json") if (root / "reports" / "event_driven_assets_plan.json").exists() else {}
+    watcher_dedupe = event_assets.get("ha_watcher_dedupe_simulation", {})
     runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
     resume_status = "success" if resume_verification.get("passed") else ("failed" if resume_verification else "not run")
     planner_workloads = [
@@ -301,6 +303,17 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div class="fact"><span>Lineage edges</span><strong>{sum(len(v) for v in lineage.values())}</strong></div>
                 <div class="fact"><span>Latest model partition</span><strong>{esc(assets.get('daily_demand_model', {}).get('latest_successful_partition'))}</strong></div>
                 <div class="fact"><span>Failed DAG runs</span><strong>{esc(assets.get('airflow_training_dag', {}).get('failed_runs', 0))}</strong></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2>Event Watcher Dedupe</h2>
+              <div class="facts">
+                <div class="fact"><span>Triggerers</span><strong>{esc(watcher_dedupe.get('triggerer_count', 0))}</strong></div>
+                <div class="fact"><span>Input events</span><strong>{esc(watcher_dedupe.get('input_events', 0))}</strong></div>
+                <div class="fact"><span>Accepted events</span><strong>{esc(watcher_dedupe.get('accepted_events', 0))}</strong></div>
+                <div class="fact"><span>Suppressed duplicates</span><strong>{esc(watcher_dedupe.get('suppressed_duplicates', 0))}</strong></div>
+                <div class="fact"><span>Dedupe store</span><strong>{compact_label(watcher_dedupe.get('dedupe_store', 'not planned'))}</strong></div>
+                <div class="fact"><span>Contract</span><strong>{badge(bool(watcher_dedupe.get('passed')))}</strong></div>
               </div>
             </div>
             <div class="panel">
