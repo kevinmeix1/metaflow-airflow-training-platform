@@ -47,7 +47,14 @@ make clean
 make demo
 make test
 open .local/reports/training_orchestration_dashboard.html
+open .local/reports/judge_demo_cockpit.html
 ```
+
+The judge demo cockpit links the training dashboard, narrated video,
+operational readiness packet, and generated evidence artifacts behind
+interactive release, observability, governance, and operator-handoff filters.
+
+![Judge demo cockpit](docs/screenshots/dashboard-judge-cockpit.jpg)
 
 In the Backfill Capacity Lab, lower CPU per wave from 6 to 2. The same three
 priority-ordered workloads are repacked from one wave into three without
