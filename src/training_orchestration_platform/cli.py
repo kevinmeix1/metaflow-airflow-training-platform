@@ -7,6 +7,7 @@ from pathlib import Path
 from .accelerator_plan import build_accelerator_capacity_plan
 from .admin_access_diagnostics import build_admin_access_diagnostic_plan
 from .advanced_device_sharing import build_advanced_device_sharing_plan
+from .ai_workload_telemetry import build_ai_workload_telemetry_plan
 from .airflow_stateful_orchestration import build_airflow_stateful_orchestration_plan
 from .artifact_index import render_artifact_index
 from .asset_partitioning import build_asset_partitioning_plan
@@ -121,6 +122,7 @@ def demo(output: str | Path) -> dict:
     constrained_impersonation = build_constrained_impersonation_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
     checkpoint_training = build_checkpoint_training_readiness_plan(root)
+    ai_workload_telemetry = build_ai_workload_telemetry_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
         root,
@@ -191,6 +193,7 @@ def demo(output: str | Path) -> dict:
         "constrained_impersonation": constrained_impersonation,
         "oci_artifact_volume": oci_artifact_volume,
         "checkpoint_training": checkpoint_training,
+        "ai_workload_telemetry": ai_workload_telemetry,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),

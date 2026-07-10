@@ -10,6 +10,7 @@ from training_orchestration_platform import __version__
 from training_orchestration_platform.accelerator_plan import build_accelerator_capacity_plan
 from training_orchestration_platform.admin_access_diagnostics import build_admin_access_diagnostic_plan
 from training_orchestration_platform.advanced_device_sharing import build_advanced_device_sharing_plan
+from training_orchestration_platform.ai_workload_telemetry import build_ai_workload_telemetry_plan
 from training_orchestration_platform.airflow_stateful_orchestration import build_airflow_stateful_orchestration_plan
 from training_orchestration_platform.asset_partitioning import build_asset_partitioning_plan
 from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
@@ -211,6 +212,21 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertTrue((Path(tmp) / "reports" / "trace_report.json").exists())
         for expected in ["kind: ConfigMap", "otlp", "k8sattributes", "memory_limiter", "attributes/semantic_redaction", "training.row_sample", "pii.customer_id", "prometheus", "batch"]:
             self.assertIn(expected, collector)
+
+    def test_ai_workload_telemetry_plan_covers_partition_lineage_and_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan = build_ai_workload_telemetry_plan(root)
+            resource_fields = set(plan["required_resource_fields"])
+            otel_fields = set(plan["required_otel_fields"])
+
+            self.assertTrue(plan["passed"])
+            self.assertIn("pod.index", resource_fields)
+            self.assertTrue(any(field.startswith("dra.") for field in resource_fields))
+            self.assertIn("airflow.asset.uri", otel_fields)
+            self.assertIn("training.resume.lineage", otel_fields)
+            self.assertTrue(any("checkpoint" in workload["asset"] for workload in plan["workloads"]))
+            self.assertTrue((root / "reports" / "ai_workload_telemetry_plan.json").exists())
 
     def test_chaos_drill_and_chaos_mesh_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]

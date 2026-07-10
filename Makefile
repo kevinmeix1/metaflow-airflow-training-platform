@@ -260,6 +260,7 @@ ci-verify:
 	test -f .local/reports/constrained_impersonation_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
 	test -f .local/reports/checkpoint_training_readiness_plan.json
+	test -f .local/reports/ai_workload_telemetry_plan.json
 	test -f .local/reports/release_admission_decision.json
 	test -f .local/supply-chain/subject.checksums.txt
 	python3 -m json.tool .local/reports/governance_evidence_bundle.json >/dev/null
@@ -305,6 +306,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/constrained_impersonation_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
 	python3 -m json.tool .local/reports/checkpoint_training_readiness_plan.json >/dev/null
+	python3 -m json.tool .local/reports/ai_workload_telemetry_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
 
 kubernetes-plan:

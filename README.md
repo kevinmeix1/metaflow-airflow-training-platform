@@ -258,6 +258,7 @@ tests/                        Domain, failure, and contract tests
 ## Selected Design Notes
 
 - [Airflow 3.3 Stateful Orchestration](docs/airflow-stateful-orchestration.md)
+- [AI Workload Telemetry Readiness](docs/ai-workload-telemetry.md)
 - [Production Refinements](docs/production-grade-refinements.md)
 - [Kubernetes and Airflow Robustness](docs/kubernetes-airflow-robustness.md)
 - [Advanced Backfill Control Plane](docs/control-plane-depth.md)
