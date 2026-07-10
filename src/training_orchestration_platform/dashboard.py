@@ -103,7 +103,11 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     runtime_verification = read_json(root / "metaflow" / "verification.json") if (root / "metaflow" / "verification.json").exists() else {}
     resume_verification = read_json(root / "metaflow" / "resume_verification.json") if (root / "metaflow" / "resume_verification.json").exists() else {}
     event_assets = read_json(root / "reports" / "event_driven_assets_plan.json") if (root / "reports" / "event_driven_assets_plan.json").exists() else {}
+    checkpoint_training = read_json(root / "reports" / "checkpoint_training_readiness_plan.json") if (root / "reports" / "checkpoint_training_readiness_plan.json").exists() else {}
     watcher_dedupe = event_assets.get("ha_watcher_dedupe_simulation", {})
+    checkpoint_capacity = checkpoint_training.get("capacity", {})
+    checkpoint_windows = checkpoint_training.get("resume_windows", [])
+    checkpoint_observability = checkpoint_training.get("observability", {})
     runtime_verified = bool(runtime_verification.get("passed")) and runtime_verification.get("run_id") == runtime_contract.get("metaflow_run_id")
     resume_status = "success" if resume_verification.get("passed") else ("failed" if resume_verification else "not run")
     planner_workloads = [
@@ -285,6 +289,17 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div class="fact"><span>Resumed run</span><strong>{identifier_label(resume_verification.get('resumed_run_id', 'not run'))}</strong></div>
                 <div class="fact"><span>Fresh steps</span><strong>{partition_chips(resume_verification.get('fresh_steps', []))}</strong></div>
                 <div class="fact"><span>Candidate</span><strong>{compact_label(resume_verification.get('selected_candidate', 'not run'))}</strong></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2>Checkpointed Distributed Training</h2>
+              <div class="facts">
+                <div class="fact"><span>Readiness</span><strong>{badge(bool(checkpoint_training.get('passed')))}</strong></div>
+                <div class="fact"><span>Resume SLA pass</span><strong>{esc(sum(1 for item in checkpoint_windows if item.get('passed')))}/{esc(len(checkpoint_windows))}</strong></div>
+                <div class="fact"><span>GPU equivalent</span><strong>{esc(checkpoint_capacity.get('total_gpu_equivalent', 'n/a'))}</strong></div>
+                <div class="fact"><span>Protected queue</span><strong>{compact_label(checkpoint_capacity.get('protected_queue', 'not planned'))}</strong></div>
+                <div class="fact"><span>Preemptible queue</span><strong>{compact_label(checkpoint_capacity.get('preemptible_queue', 'not planned'))}</strong></div>
+                <div class="fact"><span>Metaflow fields</span><strong>{partition_chips(checkpoint_observability.get('metaflow', []))}</strong></div>
               </div>
             </div>
             <div class="panel">

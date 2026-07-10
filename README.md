@@ -13,7 +13,7 @@ require a real cluster and shared infrastructure.
 
 ![Training orchestration dashboard](docs/screenshots/dashboard.png)
 
-[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md)
+[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png)
 
 ## Implementation Status
 
@@ -24,6 +24,7 @@ require a real cluster and shared infrastructure.
 | Four-way candidate `foreach`, gates, cards, artifacts | Metaflow run verifier and uploaded CI evidence | Executable in CI |
 | Failed publish, retry exhaustion, and `resume` lineage | `make metaflow-resume-contract` | Executable in CI |
 | Airflow 3.3 task and asset state DAG | `make airflow-sdk-contract` | SDK parse-verified in CI |
+| Checkpointed distributed training readiness | `make checkpoint-training-readiness` | Deterministic Kubernetes mapping |
 | Interactive backfill capacity lab | Browser-tested CPU, memory, and concurrency repacking | Executable locally |
 | Metaflow-generated Airflow DAG | Official export command and environment contract | Deployment mapping |
 | Kueue, Kubernetes, DRA, KubeRay, GitOps, and policy assets | YAML and deterministic policy reports | Reference design |
@@ -224,6 +225,7 @@ single failed state transition.
 | `make run` | Run one fixed partition through the local control plane |
 | `make backfill` | Execute a fixed multi-partition backfill |
 | `make plan-backfill` | Build bounded backfill waves and skipped-partition evidence |
+| `make checkpoint-training-readiness` | Generate Metaflow checkpoint, JobSet, Kueue, and resume-SLA evidence |
 | `make dashboard` | Regenerate the reviewer dashboard from current artifacts |
 | `make demo-voice` | Generate the neural judge narration with `edge-tts` |
 | `make demo-video` | Assemble the committed narrated desktop and mobile walkthrough |

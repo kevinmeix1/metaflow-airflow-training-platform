@@ -13,6 +13,7 @@ from training_orchestration_platform.advanced_device_sharing import build_advanc
 from training_orchestration_platform.airflow_stateful_orchestration import build_airflow_stateful_orchestration_plan
 from training_orchestration_platform.asset_partitioning import build_asset_partitioning_plan
 from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
+from training_orchestration_platform.checkpoint_training_readiness import build_checkpoint_training_readiness_plan
 from training_orchestration_platform.chaos import run_chaos_drill
 from training_orchestration_platform.cloud_migration import build_cloud_migration_plan
 from training_orchestration_platform.cli import demo, demo_summary
@@ -347,7 +348,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs),
             action_refs,
         )
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "constrained_impersonation_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "checkpoint_training_readiness_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "constrained_impersonation_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
 
     def test_package_version_and_resume_contract_are_wired(self) -> None:
@@ -610,6 +611,31 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn(expected, docs)
         for expected in ["verify_oci_artifact_volume_mounts", "kubernetes/oci-artifact-volumes.yaml", "IfNotPresent"]:
             self.assertIn(expected, dag)
+
+    def test_checkpoint_training_readiness_plan_and_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "checkpointed-training-jobset.yaml").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "checkpointed-distributed-training.md").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            report = build_checkpoint_training_readiness_plan(root)
+            dashboard = (root / "reports" / "training_orchestration_dashboard.html").read_text(encoding="utf-8")
+            index = (root / "reports" / "index.html").read_text(encoding="utf-8")
+
+            self.assertTrue(result["checkpoint_training"]["passed"])
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "adopt_checkpointed_jobset_training_contract")
+            self.assertEqual(report["capacity"]["protected_queue"], "demand-training-queue")
+            self.assertTrue(all(item["passed"] for item in report["resume_windows"]))
+            self.assertTrue(any(check["name"] == "metaflow_checkpoint_scope_declared" for check in report["checks"]))
+            self.assertTrue((root / "reports" / "checkpoint_training_readiness_plan.json").exists())
+            self.assertIn("Checkpointed Distributed Training", dashboard)
+            self.assertIn("checkpoint_training_readiness_plan.json", index)
+        for expected in ["JobSet", "replicatedJobs", "METAFLOW_CHECKPOINT_SCOPE", "completionMode: Indexed", "kueue.x-k8s.io/queue-name", "MetaflowCheckpointRestoreSlow"]:
+            self.assertIn(expected, manifest)
+        for expected in ["Metaflow", "checkpoint", "JobSet", "Kueue", "resume", "Airflow"]:
+            self.assertIn(expected, docs)
 
     def test_dag_bundle_versioning_plan_and_airflow_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -1036,6 +1062,7 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("provisioning_admission_checks", names)
             self.assertIn("multikueue_dispatch", names)
             self.assertIn("oci_image_volume_artifacts", names)
+            self.assertIn("checkpointed_distributed_training", names)
             self.assertIn("airflow_dag_bundle_versioning", names)
             self.assertIn("airflow_asset_partitioning", names)
             self.assertIn("airflow_stateful_orchestration", names)

@@ -11,6 +11,7 @@ from .airflow_stateful_orchestration import build_airflow_stateful_orchestration
 from .artifact_index import render_artifact_index
 from .asset_partitioning import build_asset_partitioning_plan
 from .capacity_planner import build_backfill_plan
+from .checkpoint_training_readiness import build_checkpoint_training_readiness_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
 from .cohort_fair_sharing import build_cohort_fair_sharing_plan
@@ -119,6 +120,7 @@ def demo(output: str | Path) -> dict:
     suspended_job_resources = build_suspended_job_resource_plan(root)
     constrained_impersonation = build_constrained_impersonation_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
+    checkpoint_training = build_checkpoint_training_readiness_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
         root,
@@ -188,6 +190,7 @@ def demo(output: str | Path) -> dict:
         "suspended_job_resources": suspended_job_resources,
         "constrained_impersonation": constrained_impersonation,
         "oci_artifact_volume": oci_artifact_volume,
+        "checkpoint_training": checkpoint_training,
         "release_admission": release_admission,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
@@ -363,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     constrained_impersonation_parser.add_argument("--output", default=".local")
     artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
     artifact_volume_parser.add_argument("--output", default=".local")
+    checkpoint_training_parser = sub.add_parser("checkpoint-training-readiness")
+    checkpoint_training_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
     admission_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
@@ -475,6 +480,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_constrained_impersonation_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "oci-artifact-volumes":
         print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "checkpoint-training-readiness":
+        print(json.dumps(build_checkpoint_training_readiness_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":
         print(json.dumps(build_release_admission_decision(args.output), indent=2, sort_keys=True))
     return 0

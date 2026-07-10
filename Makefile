@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard demo-voice demo-video metaflow-run metaflow-verify metaflow-runtime-contract metaflow-resume-contract lint-metaflow verify-metaflow-lock package package-smoke policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard demo-voice demo-video metaflow-run metaflow-verify metaflow-runtime-contract metaflow-resume-contract lint-metaflow verify-metaflow-lock package package-smoke policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes checkpoint-training-readiness release-admission ci-verify kubernetes-plan minikube-up test clean
 
 PYTHON ?= python3
 METAFLOW_PYTHON ?= $(PYTHON)
@@ -205,6 +205,9 @@ constrained-impersonation:
 oci-artifact-volumes:
 	PYTHONPATH=src python3 -m training_orchestration_platform oci-artifact-volumes --output .local
 
+checkpoint-training-readiness:
+	PYTHONPATH=src python3 -m training_orchestration_platform checkpoint-training-readiness --output .local
+
 release-admission:
 	PYTHONPATH=src python3 -m training_orchestration_platform release-admission --output .local
 
@@ -254,6 +257,7 @@ ci-verify:
 	test -f .local/reports/suspended_job_resources_plan.json
 	test -f .local/reports/constrained_impersonation_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
+	test -f .local/reports/checkpoint_training_readiness_plan.json
 	test -f .local/reports/release_admission_decision.json
 	test -f .local/supply-chain/subject.checksums.txt
 	python3 -m json.tool .local/reports/governance_evidence_bundle.json >/dev/null
@@ -298,6 +302,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/suspended_job_resources_plan.json >/dev/null
 	python3 -m json.tool .local/reports/constrained_impersonation_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
+	python3 -m json.tool .local/reports/checkpoint_training_readiness_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
 
 kubernetes-plan:
@@ -328,6 +333,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/provisioning-admission-checks.yaml"
 	@echo "  kubectl apply -f kubernetes/multikueue-dispatch.yaml"
 	@echo "  kubectl apply -f kubernetes/oci-artifact-volumes.yaml"
+	@echo "  kubectl apply -f kubernetes/checkpointed-training-jobset.yaml"
 	@echo "  kubectl apply -f kubernetes/pod-resource-envelopes.yaml"
 	@echo "  kubectl apply -f kubernetes/kueue-cohort-fair-sharing.yaml"
 	@echo "  kubectl apply -f kubernetes/kueue-flavor-fungibility.yaml"

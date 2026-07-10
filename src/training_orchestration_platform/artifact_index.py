@@ -40,6 +40,7 @@ def render_artifact_index(root: str | Path, *, title: str, description: str, das
         ("Provisioning Admission", "provisioning_admission_plan.json", "Kueue ProvisioningRequest capacity checks, autoscaler retry strategy, node targeting, and fallback queueing."),
         ("MultiKueue Dispatch", "multikueue_dispatch_plan.json", "Kueue MultiKueue manager and worker dispatch, quota alignment, status sync, and worker failover evidence."),
         ("OCI Artifact Volumes", "oci_artifact_volume_plan.json", "Kubernetes image-volume training artifacts, digest-pinned bundles, read-only mounts, warmups, and fallback controls."),
+        ("Checkpointed Training", "checkpoint_training_readiness_plan.json", "Metaflow checkpoint recovery, JobSet replica groups, Kueue queue separation, resume SLAs, and artifact-growth guardrails."),
         ("DAG Bundle Versioning", "dag_bundle_versioning_plan.json", "Airflow 3 GitDagBundle versioning for partition replay, scheduler-managed backfills, and Metaflow lineage."),
         ("Asset Partitioning", "asset_partitioning_plan.json", "Airflow 3.2 partitioned assets for dataset snapshots, Metaflow runs, evaluation gates, and model-registration lineage."),
         ("Stateful Orchestration", "airflow_stateful_orchestration_plan.json", "Airflow 3.3 task/asset state stores, bounded manifest rollup and training fanout, retry policies, and real SDK validation."),
