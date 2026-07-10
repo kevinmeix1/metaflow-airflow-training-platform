@@ -1,4 +1,4 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -105,6 +105,12 @@ dag-bundle-plan:
 asset-partitioning-plan:
 	PYTHONPATH=src python3 -m training_orchestration_platform asset-partitioning-plan --output .local
 
+airflow-stateful-orchestration:
+	PYTHONPATH=src python3 -m training_orchestration_platform airflow-stateful-orchestration --output .local
+
+airflow-sdk-contract:
+	python3 tools/validate_airflow33_dag.py airflow/dags/airflow33_stateful_training_dag.py
+
 multi-team-readiness:
 	PYTHONPATH=src python3 -m training_orchestration_platform multi-team-readiness --output .local
 
@@ -189,6 +195,7 @@ ci-verify:
 	test -f .local/reports/multikueue_dispatch_plan.json
 	test -f .local/reports/dag_bundle_versioning_plan.json
 	test -f .local/reports/asset_partitioning_plan.json
+	test -f .local/reports/airflow_stateful_orchestration_plan.json
 	test -f .local/reports/multi_team_readiness_plan.json
 	test -f .local/reports/event_driven_assets_plan.json
 	test -f .local/reports/pod_resource_envelope_plan.json
@@ -232,6 +239,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/multikueue_dispatch_plan.json >/dev/null
 	python3 -m json.tool .local/reports/dag_bundle_versioning_plan.json >/dev/null
 	python3 -m json.tool .local/reports/asset_partitioning_plan.json >/dev/null
+	python3 -m json.tool .local/reports/airflow_stateful_orchestration_plan.json >/dev/null
 	python3 -m json.tool .local/reports/multi_team_readiness_plan.json >/dev/null
 	python3 -m json.tool .local/reports/event_driven_assets_plan.json >/dev/null
 	python3 -m json.tool .local/reports/pod_resource_envelope_plan.json >/dev/null

@@ -12,3 +12,4 @@ integrations = [
   "great-expectations>=0.18",
   "prometheus-client>=0.20"
 ]
+airflow33 = ["apache-airflow==3.3.0"]
