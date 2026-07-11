@@ -52,6 +52,7 @@ from .pod_resource_envelopes import build_pod_resource_envelope_plan
 from .provisioning_admission import build_provisioning_admission_plan
 from .queue_simulator import build_queue_simulation
 from .release_admission import build_release_admission_decision
+from .reliability_signal_mesh import build_reliability_signal_mesh
 from .resource_health_status import build_resource_health_status_plan
 from .resource_optimizer import build_resource_optimization_report
 from .runtime_security import build_runtime_security_plan
@@ -148,6 +149,12 @@ def demo(output: str | Path) -> dict:
         primary_dashboard="training_orchestration_dashboard.html",
         runbook="../../docs/runbook.md",
     )
+    reliability_signal_mesh = build_reliability_signal_mesh(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        domain="Partitioned training and backfill recovery",
+        primary_dashboard="training_orchestration_dashboard.html",
+    )
     artifact_index = render_artifact_index(
         root,
         title="Metaflow Airflow Training Platform",
@@ -214,6 +221,7 @@ def demo(output: str | Path) -> dict:
         "operational_readiness": operational_readiness,
         "judge_demo_cockpit": judge_demo_cockpit,
         "operator_drill": operator_drill,
+        "reliability_signal_mesh": reliability_signal_mesh,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,

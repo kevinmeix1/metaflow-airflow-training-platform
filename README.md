@@ -49,6 +49,7 @@ make test
 open .local/reports/training_orchestration_dashboard.html
 open .local/reports/judge_demo_cockpit.html
 open .local/reports/operator_drill_lab.html
+open .local/reports/reliability_signal_mesh.html
 ```
 
 The judge demo cockpit links the training dashboard, narrated video,
@@ -61,6 +62,12 @@ The Operator Drill Lab rehearses detection, triage, containment, recovery, and
 blameless postmortem follow-up from the generated training evidence.
 
 ![Operator drill lab](docs/screenshots/dashboard-operator-drill.png)
+
+The Reliability Signal Mesh connects Airflow asset events, OpenTelemetry
+resource attributes, Kueue admission pressure, SLO burn, and fail-closed release
+decisions into one operator-facing evidence graph.
+
+![Reliability signal mesh](docs/screenshots/dashboard-reliability-signal-mesh.png)
 
 In the Backfill Capacity Lab, lower CPU per wave from 6 to 2. The same three
 priority-ordered workloads are repacked from one wave into three without
