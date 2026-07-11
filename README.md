@@ -15,6 +15,10 @@ require a real cluster and shared infrastructure.
 
 [Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png) | [Checkpoint recovery timeline](docs/screenshots/dashboard-checkpoint-timeline.png)
 
+For a study-oriented walkthrough with the full architecture diagram,
+step-by-step screenshot guide, code reading order, and interview explanations,
+start with [the project study guide](docs/study-guide.md).
+
 ![Judge evidence deck](docs/screenshots/dashboard-evidence-deck.png)
 
 ![Judge demo theater](docs/screenshots/dashboard-demo-theater.png)
