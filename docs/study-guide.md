@@ -2,6 +2,8 @@
 
 This guide explains the full training platform, how to read the screenshots, and what production orchestration ideas the project demonstrates.
 
+The generated app follows the tested [TrainOps design contract](design-system.md), including its offline rendering, accessibility, and responsive QA rules.
+
 ## Full Architecture
 
 ```mermaid
@@ -38,9 +40,9 @@ flowchart TB
     PUBLISH --> DASH["Training dashboard"]
     BACKFILL --> DASH
     JOBSET --> DASH
-    DASH --> COCKPIT["Judge demo cockpit"]
+    DASH --> COCKPIT["Operations review"]
     DASH --> MESH["Reliability Signal Mesh"]
-    COCKPIT --> NARRATED["Narrated Demo Studio"]
+    COCKPIT --> NARRATED["Narrated Run Review"]
   end
 ```
 
@@ -48,13 +50,13 @@ The key design principle: Airflow owns time, dependencies, and operational recov
 
 ## Screenshot Walkthrough
 
-Fresh full-page captures from the generated app are available as a linear demo path:
+Fresh browser-verified captures from the generated app are available as a linear demo path:
 
 | Step | Screenshot | What it proves |
 | --- | --- | --- |
-| 0 | `docs/screenshots/study-00-artifact-index.png` | The generated artifact index gives reviewers one launch point. |
+| 0 | `docs/screenshots/study-00-artifact-index.png` | The generated artifact index gives operators one launch point. |
 | 1 | `docs/screenshots/study-01-main-dashboard.png` | The training dashboard is readable end to end. |
-| 2 | `docs/screenshots/study-02-judge-cockpit.png` | The portfolio cockpit groups evidence by reviewer intent. |
+| 2 | `docs/screenshots/study-02-judge-cockpit.png` | The operations review groups evidence by operational concern. |
 | 3 | `docs/screenshots/study-03-operator-drill.png` | Training failure recovery is rehearsed as an operator workflow. |
 | 4 | `docs/screenshots/study-04-reliability-signal-mesh.png` | Orchestration signals are connected before release decisions. |
 | 5 | `docs/screenshots/study-05-narrated-demo-studio.png` | The narration and video plan can be reviewed without running tools. |
@@ -62,17 +64,17 @@ Fresh full-page captures from the generated app are available as a linear demo p
 1. **Training dashboard**: `docs/screenshots/dashboard.png`
    Shows partitions, candidate results, gates, publication identity, and backfill behavior.
 
-2. **Checkpoint training readiness**: `docs/screenshots/dashboard-checkpoint-training.png`
+2. **Checkpoint training readiness** in the main dashboard
    Explains checkpoint cadence, queue policy, restore budget, GPU fit, and distributed training readiness.
 
-3. **Checkpoint recovery timeline**: `docs/screenshots/dashboard-checkpoint-timeline.png`
+3. **Checkpoint recovery timeline** in the main dashboard
    Shows how a failed distributed training job resumes and whether it meets the recovery objective.
 
-4. **Event dedupe panel**: `docs/screenshots/dashboard-event-dedupe.png`
+4. **Event dedupe panel** in the main dashboard
    Demonstrates idempotent event handling and duplicate suppression for orchestration signals.
 
-5. **Judge demo cockpit**: `docs/screenshots/dashboard-judge-cockpit.jpg`
-   Presents the evidence bundle by reviewer intent: release, orchestration, governance, and operator handoff.
+5. **Operations review**: `docs/screenshots/study-02-judge-cockpit.png`
+   Presents the evidence bundle by operational concern: release, orchestration, governance, and operator handoff.
 
 6. **Operator drill lab**: `docs/screenshots/dashboard-operator-drill.png`
    Walks through a training failure, containment, retry, resume, and postmortem evidence.
@@ -80,10 +82,10 @@ Fresh full-page captures from the generated app are available as a linear demo p
 7. **Reliability Signal Mesh**: `docs/screenshots/dashboard-reliability-signal-mesh.png`
    Connects Airflow asset states, resource admission, SLOs, and release decisions.
 
-8. **Narrated Demo Studio**: `docs/screenshots/dashboard-narrated-demo-studio.png`
-   Provides voice/video planning artifacts for a polished portfolio walkthrough.
+8. **Narrated Run Review**: `docs/screenshots/dashboard-narrated-demo-studio.png`
+   Provides voice/video planning artifacts for a timed operations walkthrough.
 
-9. **Mobile captures**: `docs/screenshots/dashboard-mobile.png`, `docs/screenshots/dashboard-checkpoint-training-mobile.png`, `docs/screenshots/dashboard-checkpoint-timeline-mobile.png`
+9. **Mobile capture**: `docs/screenshots/dashboard-mobile.png`
    Confirm that the demo remains usable in narrow review contexts.
 
 ## How To Study The Code
@@ -94,7 +96,7 @@ Fresh full-page captures from the generated app are available as a linear demo p
 | Metaflow runtime | `metaflow_runtime.py`, `metaflow_flows/demand_training_flow.py` | Real FlowSpec, cards, artifacts, resume contract |
 | Airflow mapping | `airflow/dags/*.py`, `airflow_stateful_orchestration.py`, `asset_partitioning.py` | DAG parsing, asset state, partitions, deadlines |
 | Kubernetes depth | `checkpoint_training_readiness.py`, `oci_artifact_volume.py`, `cohort_fair_sharing.py`, `kuberay_capacity.py` | Distributed training and queueing design |
-| Demo layer | `dashboard.py`, `demo_cockpit.py`, `narrated_demo_studio.py`, `artifact_index.py` | How the training evidence becomes a teachable UI |
+| Operator UI | `operator_console.py`, `dashboard.py`, `demo_cockpit.py`, `narrated_demo_studio.py`, `artifact_index.py` | Shared shell, offline reports, responsive behavior, and training evidence navigation |
 
 ## Commands To Reproduce
 

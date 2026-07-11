@@ -7,21 +7,25 @@ forecasting. It demonstrates orchestration boundaries, bounded candidate
 fan-out, evaluation gates, artifact lineage, idempotent publication, backfills,
 and failed-partition recovery.
 
-This is a portfolio system, not a production service. The repository separates
+This is a production-style reference system, not a managed production service. The repository separates
 code that runs in local CI from Airflow and Kubernetes deployment designs that
 require a real cluster and shared infrastructure.
 
 ![Training orchestration dashboard](docs/screenshots/dashboard.png)
 
-[Watch the narrated judge demo](docs/demo/training-judge-demo.mp4) | [Follow the live demo script](docs/judge-demo.md) | [Checkpoint training dashboard capture](docs/screenshots/dashboard-checkpoint-training.png) | [Checkpoint recovery timeline](docs/screenshots/dashboard-checkpoint-timeline.png)
+[Watch the narrated operations review](docs/demo/training-judge-demo.mp4) | [Follow the run-review notes](docs/judge-demo.md) | [Open the responsive console capture](docs/screenshots/dashboard-mobile.png)
 
 For a study-oriented walkthrough with the full architecture diagram,
 step-by-step screenshot guide, code reading order, and interview explanations,
 start with [the project study guide](docs/study-guide.md).
 
-![Judge evidence deck](docs/screenshots/dashboard-evidence-deck.png)
+The UI is governed by an offline, tested operator-console system. Its rationale,
+open-source references, accessibility contract, and review checklist are in the
+[design-system notes](docs/design-system.md).
 
-![Judge demo theater](docs/screenshots/dashboard-demo-theater.png)
+![Training evidence](docs/screenshots/dashboard-evidence-deck.png)
+
+![Run review](docs/screenshots/dashboard-demo-theater.png)
 
 ## Implementation Status
 
@@ -57,11 +61,11 @@ open .local/reports/reliability_signal_mesh.html
 open .local/reports/narrated_demo_studio.html
 ```
 
-The judge demo cockpit links the training dashboard, narrated video,
+The Operations Review links the training dashboard, narrated run review,
 operational readiness packet, and generated evidence artifacts behind
 interactive release, observability, governance, and operator-handoff filters.
 
-![Judge demo cockpit](docs/screenshots/dashboard-judge-cockpit.jpg)
+![Operations review](docs/screenshots/study-02-judge-cockpit.png)
 
 The Operator Drill Lab rehearses detection, triage, containment, recovery, and
 blameless postmortem follow-up from the generated training evidence.
@@ -74,11 +78,11 @@ decisions into one operator-facing evidence graph.
 
 ![Reliability signal mesh](docs/screenshots/dashboard-reliability-signal-mesh.png)
 
-The Narrated Demo Studio turns the evidence bundle into a judge-facing chapter
+The Narrated Run Review turns the evidence bundle into an operator-facing chapter
 timeline with natural voice backends, Remotion props, subtitle timing, and
 evidence-linked visuals.
 
-![Narrated demo studio](docs/screenshots/dashboard-narrated-demo-studio.png)
+![Narrated run review](docs/screenshots/dashboard-narrated-demo-studio.png)
 
 In the Backfill Capacity Lab, lower CPU per wave from 6 to 2. The same three
 priority-ordered workloads are repacked from one wave into three without

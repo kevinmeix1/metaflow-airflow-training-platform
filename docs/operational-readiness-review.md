@@ -6,7 +6,7 @@ The review aggregates Airflow backfill admission, SLO burn rate, Metaflow checkp
 
 The packet is intentionally fail-closed. If backfill admission is incomplete, partition reliability is paging, capacity waves are missing, checkpoint recovery is not proven, provenance is absent, or telemetry lacks partition lineage, the recommendation becomes remediation instead of expansion.
 
-Judge demo talking points:
+Interview review prompts:
 
 - Failed-partition recovery is separated from bulk backfill expansion.
 - Airflow assets, Metaflow artifacts, Kueue admission, checkpointing, and provenance are reviewed together.

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .io import read_json, read_jsonl
+from .operator_console import decorate_console
 from .orchestrator import run_log_path
 
 
@@ -286,11 +287,11 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           <div class="metric"><span>Metaflow runtime</span><strong>{badge(runtime_verified)}</strong></div>
           <div class="metric"><span>Recovery drill</span><strong>{status_badge(resume_status)}</strong></div>
         </section>
-        <section class="panel evidence-deck" data-testid="judge-evidence-deck">
+        <section class="panel evidence-deck" data-testid="release-evidence">
           <div class="evidence-head">
             <div>
-              <h2>Judge Evidence Deck</h2>
-              <p>This view connects the local demo to a real training control plane: calendar ownership, partition recovery, Metaflow artifacts, and promotion gates.</p>
+              <h2>Training Evidence</h2>
+              <p>Scheduler ownership, partition recovery, Metaflow artifacts, and promotion gates for the current training window.</p>
             </div>
             <span class="badge neutral">orchestration proof</span>
           </div>
@@ -301,10 +302,10 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
             <div class="evidence-card"><span>Kubernetes capacity</span><strong>Backfills are admitted as workloads</strong><p>Kueue-style waves, resource envelopes, and priority ordering prevent historical replay from starving production training.</p></div>
           </div>
         </section>
-        <section class="panel demo-theater" data-testid="demo-theater">
+        <section class="panel demo-theater" data-testid="run-review">
           <div class="evidence-head">
-            <div><h2>Judge Demo Theater</h2><p>Use this guided path to demo Airflow orchestration, Metaflow runtime evidence, recovery, and Kubernetes batch capacity like a production review.</p></div>
-            <span class="badge neutral">narrated demo</span>
+            <div><h2>Run Review</h2><p>A timed review of Airflow orchestration, Metaflow runtime evidence, partition recovery, and batch capacity.</p></div>
+            <span class="badge neutral">guided runbook</span>
           </div>
           <div class="theater-grid">
             <div class="theater-stage" aria-live="polite">
@@ -324,10 +325,10 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
                 <div><span>Evidence</span><strong>Metaflow + Airflow artifacts</strong></div>
               </div>
               <div class="theater-progress"><span id="theaterProgress"></span></div>
-              <p id="theaterNotes" class="theater-notes">Reviewer path: run <code>make demo</code>, inspect failed partition recovery, then play <code>docs/demo/training-judge-demo.mp4</code>.</p>
+              <p id="theaterNotes" class="theater-notes">Generate a deterministic snapshot with <code>make demo</code>, then inspect failed-partition recovery evidence.</p>
               <div class="theater-links">
-                <a href="../../docs/demo/training-judge-demo.mp4">Watch video</a>
-                <a href="../../docs/judge-demo.md">Demo script</a>
+                <a href="../../docs/demo/training-judge-demo.mp4">Open recording</a>
+                <a href="../../docs/judge-demo.md">Run review notes</a>
                 <a href="../../docs/demo-narration.txt">Narration text</a>
                 <a href="index.html">Artifact index</a>
               </div>
@@ -338,7 +339,7 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
           function renderDemoTheater(index) {{
             const cues = [
               {{cue: "Boundary", title: "Separate scheduler and training concerns", body: "Start by explaining why Airflow owns partitions, assets, and backfills while Metaflow owns the training graph.", notes: "The senior story is ownership: calendars, retries, queues, and incidents are outside model code."}},
-              {{cue: "Backfill", title: "Show capacity-aware backfill planning", body: "Use the Backfill Capacity Lab to repack workloads and explain Kueue-style admission pressure.", notes: "Judges should see resource budgets and priority ordering, not a decorative DAG screenshot."}},
+              {{cue: "Backfill", title: "Show capacity-aware backfill planning", body: "Use the Backfill Capacity Lab to repack workloads and explain Kueue-style admission pressure.", notes: "Resource budgets and priority ordering are backed by admission evidence rather than a decorative DAG view."}},
               {{cue: "Recover", title: "Demonstrate failed partition recovery", body: "Move to checkpoint timelines, resume evidence, lineage, and Metaflow run cards.", notes: "Recovery is valuable because it preserves partition identity and avoids unsafe duplicate publishing."}},
               {{cue: "Scale", title: "Close with production migration", body: "Connect local artifacts to Kubernetes pods, Airflow pools, object storage, registry contracts, and CI gates.", notes: "This proves the repo can be discussed as a platform, not just a notebook pipeline."}}
             ];
@@ -610,5 +611,5 @@ def render_dashboard(root: str | Path, output_path: str | Path) -> Path:
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(body, encoding="utf-8")
+    output_path.write_text(decorate_console(body, active="dashboard"), encoding="utf-8")
     return output_path

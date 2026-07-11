@@ -166,7 +166,7 @@ def demo(output: str | Path) -> dict:
     artifact_index = render_artifact_index(
         root,
         title="Metaflow Airflow Training Platform",
-        description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
+        description="Generated registry for training runs, lineage, backfill decisions, SLO budgets, and recovery evidence.",
         dashboard="training_orchestration_dashboard.html",
     )
     orchestration_scorecard = build_orchestration_scorecard(root, project="Metaflow Airflow Training Platform")
