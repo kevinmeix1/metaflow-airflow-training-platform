@@ -1,0 +1,117 @@
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: demand-transformer-weekly
+  namespace: mlops-training
+  labels:
+    app.kubernetes.io/part-of: metaflow-airflow-training-platform
+    training.mlops.dev/checkpoint-policy: metaflow-task
+  annotations:
+    kueue.x-k8s.io/queue-name: demand-training-queue
+    metaflow.org/checkpoint-interval-minutes: "12"
+    airflow.apache.org/partition-key: "2026-06-09:demand-transformer-weekly"
+spec:
+  replicatedJobs:
+    - name: leader
+      replicas: 1
+      template:
+        spec:
+          completions: 1
+          parallelism: 1
+          backoffLimit: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: trainer
+                  image: ghcr.io/kevinmeix1/metaflow-training:2026.07.10
+                  imagePullPolicy: IfNotPresent
+                  command: ["python", "-m", "metaflow_extensions.checkpointed_train"]
+                  env:
+                    - name: METAFLOW_CHECKPOINT_SCOPE
+                      value: metaflow-task
+                    - name: CHECKPOINT_INTERVAL_MINUTES
+                      value: "12"
+                  resources:
+                    requests:
+                      cpu: "2"
+                      memory: 8Gi
+                      nvidia.com/gpu: "1"
+                    limits:
+                      cpu: "4"
+                      memory: 12Gi
+                      nvidia.com/gpu: "1"
+    - name: worker
+      replicas: 4
+      template:
+        spec:
+          completions: 4
+          parallelism: 4
+          completionMode: Indexed
+          backoffLimitPerIndex: 1
+          maxFailedIndexes: 1
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: trainer
+                  image: ghcr.io/kevinmeix1/metaflow-training:2026.07.10
+                  imagePullPolicy: IfNotPresent
+                  command: ["python", "-m", "metaflow_extensions.checkpointed_train"]
+                  env:
+                    - name: JOB_COMPLETION_INDEX
+                      valueFrom:
+                        fieldRef:
+                          fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                    - name: METAFLOW_CHECKPOINT_SCOPE
+                      value: metaflow-task
+                    - name: CHECKPOINT_INTERVAL_MINUTES
+                      value: "12"
+                  resources:
+                    requests:
+                      cpu: "4"
+                      memory: 16Gi
+                      nvidia.com/gpu: "1"
+                    limits:
+                      cpu: "6"
+                      memory: 24Gi
+                      nvidia.com/gpu: "1"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: demand-training-queue
+  namespace: mlops-training
+spec:
+  clusterQueue: production-training
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: checkpointed-training-readiness
+  namespace: mlops-training
+spec:
+  groups:
+    - name: checkpointed-training-readiness
+      rules:
+        - alert: MetaflowCheckpointRestoreSlow
+          expr: histogram_quantile(0.95, sum(rate(metaflow_checkpoint_restore_seconds_bucket[10m])) by (le, flow_name)) > 1080
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Metaflow checkpoint restore exceeds the production resume SLA.
+        - alert: TrainingJobSetPreemptedProduction
+          expr: increase(kueue_workload_evicted_total{local_queue="demand-training-queue"}[15m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: Production checkpointed training workload was preempted.
+        - alert: TrainingCheckpointArtifactGrowthHigh
+          expr: sum(rate(metaflow_checkpoint_bytes_written_total[30m])) by (flow_name) > 6000000000
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Checkpoint artifact growth is above the storage budget.

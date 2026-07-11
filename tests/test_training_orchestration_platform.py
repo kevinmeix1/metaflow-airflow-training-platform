@@ -1,22 +1,30 @@
 from __future__ import annotations
 
+import re
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
+from training_orchestration_platform import __version__
 from training_orchestration_platform.accelerator_plan import build_accelerator_capacity_plan
 from training_orchestration_platform.admin_access_diagnostics import build_admin_access_diagnostic_plan
 from training_orchestration_platform.advanced_device_sharing import build_advanced_device_sharing_plan
+from training_orchestration_platform.ai_workload_telemetry import build_ai_workload_telemetry_plan
+from training_orchestration_platform.airflow_stateful_orchestration import build_airflow_stateful_orchestration_plan
 from training_orchestration_platform.asset_partitioning import build_asset_partitioning_plan
 from training_orchestration_platform.capacity_planner import build_backfill_plan, pack_waves
+from training_orchestration_platform.checkpoint_training_readiness import build_checkpoint_training_readiness_plan
 from training_orchestration_platform.chaos import run_chaos_drill
 from training_orchestration_platform.cloud_migration import build_cloud_migration_plan
-from training_orchestration_platform.cli import demo
+from training_orchestration_platform.cli import demo, demo_summary
 from training_orchestration_platform.cohort_fair_sharing import build_cohort_fair_sharing_plan
 from training_orchestration_platform.control_plane_diagnostics import build_control_plane_diagnostics_plan
 from training_orchestration_platform.constrained_impersonation import build_constrained_impersonation_plan
 from training_orchestration_platform.cost_observability import build_cost_observability_report
 from training_orchestration_platform.dag_bundle_versioning import build_dag_bundle_versioning_plan
+from training_orchestration_platform.demo_cockpit import build_judge_demo_cockpit, build_operator_drill_lab
+from training_orchestration_platform.narrated_demo_studio import build_narrated_demo_studio
 from training_orchestration_platform.data import generate_partition, validate_rows
 from training_orchestration_platform.deadline_alerts import build_deadline_alert_plan
 from training_orchestration_platform.device_allocation import build_device_allocation_plan
@@ -41,6 +49,7 @@ from training_orchestration_platform.network_security import build_network_secur
 from training_orchestration_platform.orchestrator import backfill, run_log_path, run_partition
 from training_orchestration_platform.orchestration_scorecard import build_orchestration_scorecard
 from training_orchestration_platform.oci_artifact_volume import build_oci_artifact_volume_plan
+from training_orchestration_platform.operational_readiness import build_operational_readiness_review
 from training_orchestration_platform.pending_workload_visibility import build_pending_workload_visibility_plan
 from training_orchestration_platform.policy_audit import audit_platform_policy
 from training_orchestration_platform.performance_budget import build_performance_budget_report
@@ -48,6 +57,7 @@ from training_orchestration_platform.pod_resource_envelopes import build_pod_res
 from training_orchestration_platform.provisioning_admission import build_provisioning_admission_plan
 from training_orchestration_platform.queue_simulator import build_queue_simulation
 from training_orchestration_platform.release_admission import build_release_admission_decision, evaluate_release_admission
+from training_orchestration_platform.reliability_signal_mesh import build_reliability_signal_mesh
 from training_orchestration_platform.resource_health_status import build_resource_health_status_plan
 from training_orchestration_platform.resource_optimizer import build_resource_optimization_report
 from training_orchestration_platform.runtime_security import build_runtime_security_plan
@@ -207,6 +217,21 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["kind: ConfigMap", "otlp", "k8sattributes", "memory_limiter", "attributes/semantic_redaction", "training.row_sample", "pii.customer_id", "prometheus", "batch"]:
             self.assertIn(expected, collector)
 
+    def test_ai_workload_telemetry_plan_covers_partition_lineage_and_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan = build_ai_workload_telemetry_plan(root)
+            resource_fields = set(plan["required_resource_fields"])
+            otel_fields = set(plan["required_otel_fields"])
+
+            self.assertTrue(plan["passed"])
+            self.assertIn("pod.index", resource_fields)
+            self.assertTrue(any(field.startswith("dra.") for field in resource_fields))
+            self.assertIn("airflow.asset.uri", otel_fields)
+            self.assertIn("training.resume.lineage", otel_fields)
+            self.assertTrue(any("checkpoint" in workload["asset"] for workload in plan["workloads"]))
+            self.assertTrue((root / "reports" / "ai_workload_telemetry_plan.json").exists())
+
     def test_chaos_drill_and_chaos_mesh_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         chaos_manifest = (repo / "kubernetes" / "chaos-experiments.yaml").read_text(encoding="utf-8")
@@ -335,10 +360,119 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         workflow = (repo / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         makefile = (repo / "Makefile").read_text(encoding="utf-8")
 
-        for expected in ["actions/upload-artifact@v6", "actions/attest@v4", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency"]:
+        for expected in ["actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f", "actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999", "attestations: write", "GITHUB_STEP_SUMMARY", "make ci-verify", "concurrency", "metaflow-runtime-contract", "metaflow-resume-contract", "requirements-metaflow.lock", "make lint-metaflow", "make verify-metaflow-lock", "make package-smoke", "resume_verification.json"]:
             self.assertIn(expected, workflow)
-        for expected in ["ci-verify:", "index.html", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "constrained_impersonation_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
+        action_refs = re.findall(r"uses:\s*[^@\s]+@([^\s#]+)", workflow)
+        self.assertTrue(action_refs)
+        self.assertTrue(
+            all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs),
+            action_refs,
+        )
+        for expected in ["ci-verify:", "index.html", "operational_readiness_review.json", "judge_demo_cockpit.html", "judge_demo_cockpit_manifest.json", "operator_drill_lab.html", "operator_drill_report.json", "reliability_signal_mesh.html", "reliability_signal_mesh.json", "narrated_demo_studio.html", "narrated_demo_studio.json", "remotion_demo_props.json", "narrated_demo_subtitle_plan.srt", "tenancy_fairness_report.json", "identity_access_report.json", "pending_workload_visibility_plan.json", "flavor_fungibility_plan.json", "cohort_fair_sharing_plan.json", "pod_resource_envelope_plan.json", "event_driven_assets_plan.json", "multi_team_readiness_plan.json", "asset_partitioning_plan.json", "dag_bundle_versioning_plan.json", "multikueue_dispatch_plan.json", "oci_artifact_volume_plan.json", "checkpoint_training_readiness_plan.json", "provisioning_admission_plan.json", "indexed_job_resilience_plan.json", "elastic_workload_plan.json", "cost_observability_report.json", "deadline_alert_plan.json", "semantic_telemetry_plan.json", "inference_gateway_plan.json", "kuberay_capacity_plan.json", "topology_placement_plan.json", "inplace_resize_plan.json", "admin_access_diagnostics_plan.json", "advanced_device_sharing_plan.json", "resource_health_status_plan.json", "release_admission_decision.json", "runtime_security_plan.json", "control_plane_diagnostics_plan.json", "memory_qos_plan.json", "hpa_scale_to_zero_plan.json", "suspended_job_resources_plan.json", "constrained_impersonation_plan.json", "workload_aware_scheduling_plan.json", "queue_simulation.json", "performance_budget.json", "device_allocation_plan.json", "accelerator_capacity_plan.json", "orchestration_scorecard.json", "supply_chain_evidence.json", "governance_evidence_bundle.json", "cloud_migration_plan.json"]:
             self.assertIn(expected, makefile)
+
+    def test_operational_readiness_review_aggregates_training_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            review = build_operational_readiness_review(root)
+
+            self.assertEqual(result["operational_readiness"]["target"], "airflow://ml-training/demand-training-backfill")
+            self.assertGreaterEqual(review["readiness_score"], 80.0)
+            self.assertIn("reports/backfill_capacity_plan.json", review["operator_review_packet"])
+            self.assertTrue(any(check["name"] == "capacity_and_checkpointing_ready" for check in review["checks"]))
+            self.assertTrue((root / "reports" / "operational_readiness_review.json").exists())
+
+    def test_reliability_signal_mesh_connects_training_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            mesh = build_reliability_signal_mesh(
+                root,
+                project_name="Metaflow Airflow Training Platform",
+                domain="training mesh",
+                primary_dashboard="training_orchestration_dashboard.html",
+            )
+            html = (root / "reports" / "reliability_signal_mesh.html").read_text(encoding="utf-8")
+            self.assertEqual(result["reliability_signal_mesh"]["status"], "ready")
+            self.assertEqual(mesh["readiness_score"], 100.0)
+            self.assertIn("airflow.run_id", mesh["semantic_contract"])
+            self.assertEqual(mesh["edges"][0]["from"], "asset_event_to_dag")
+            self.assertIn("Causal Signal Edges", html)
+            self.assertTrue((root / "reports" / "reliability_signal_mesh.json").exists())
+
+    def test_judge_demo_cockpit_links_training_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            cockpit = build_judge_demo_cockpit(
+                root,
+                project_name="Metaflow Airflow Training Platform",
+                primary_dashboard="training_orchestration_dashboard.html",
+                demo_video="../../docs/demo/training-judge-demo.mp4",
+            )
+            html = (root / "reports" / "judge_demo_cockpit.html").read_text(encoding="utf-8")
+            self.assertEqual(result["judge_demo_cockpit"]["scenario_count"], 4)
+            self.assertGreaterEqual(cockpit["evidence_count"], 8)
+            self.assertIn("Metaflow Airflow Training Platform", html)
+            self.assertIn("Demo Storyline", html)
+
+    def test_operator_drill_lab_rehearses_training_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            drill = build_operator_drill_lab(
+                root,
+                project_name="Metaflow Airflow Training Platform",
+                scenario="training drill",
+                primary_dashboard="training_orchestration_dashboard.html",
+                runbook="../../docs/runbook.md",
+            )
+            html = (root / "reports" / "operator_drill_lab.html").read_text(encoding="utf-8")
+            self.assertEqual(result["operator_drill"]["status"], "ready")
+            self.assertEqual(drill["timeline"][-1]["phase"], "learn")
+            self.assertIn("Incident Roles", html)
+            self.assertTrue((root / "reports" / "operator_drill_report.json").exists())
+
+    def test_narrated_demo_studio_generates_training_video_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            studio = build_narrated_demo_studio(
+                root,
+                project_name="Metaflow Airflow Training Platform",
+                domain="Partitioned training and backfill recovery",
+                primary_dashboard="training_orchestration_dashboard.html",
+                demo_video="../../docs/demo/training-judge-demo.mp4",
+            )
+            html = (root / "reports" / "narrated_demo_studio.html").read_text(encoding="utf-8")
+            props = read_json(root / "reports" / "remotion_demo_props.json")
+            self.assertEqual(result["narrated_demo_studio"]["status"], "ready")
+            self.assertIn("kokoro_local", {item["name"] for item in studio["natural_voice_backends"]})
+            self.assertIn("Remotion props", html)
+            self.assertEqual(props["durationInFrames"], 5220)
+            self.assertTrue((root / "reports" / "narrated_demo_subtitle_plan.srt").exists())
+
+    def test_package_version_and_resume_contract_are_wired(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        pyproject = tomllib.loads((repo / "pyproject.toml").read_text(encoding="utf-8"))
+        flow = (repo / "metaflow_flows" / "demand_training_flow.py").read_text(encoding="utf-8")
+        resume_tool = (repo / "tools" / "verify_metaflow_resume.py").read_text(encoding="utf-8")
+        lock = (repo / "requirements-metaflow.lock").read_text(encoding="utf-8")
+
+        self.assertEqual(__version__, "0.3.0")
+        self.assertIn("version", pyproject["project"]["dynamic"])
+        self.assertNotIn("version", pyproject["project"])
+        self.assertEqual(
+            pyproject["tool"]["setuptools"]["dynamic"]["version"]["attr"],
+            "training_orchestration_platform.__version__",
+        )
+        for expected in ["current.origin_run_id", "current.retry_count", "TRAINING_FAULT_STEP", "TRAINING_ENABLE_FAULT_INJECTION"]:
+            self.assertIn(expected, flow)
+        for expected in ["Runner(", ".resume(", "origin_pathspec", "failed_publish_attempts"]:
+            self.assertIn(expected, resume_tool)
+        for expected in ["metaflow==2.19.29", "build==1.5.1", "pip==25.3", "setuptools==83.0.0", "wheel==0.47.0"]:
+            self.assertIn(expected, lock)
 
     def test_accelerator_capacity_plan_and_kubernetes_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
@@ -580,6 +714,32 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["verify_oci_artifact_volume_mounts", "kubernetes/oci-artifact-volumes.yaml", "IfNotPresent"]:
             self.assertIn(expected, dag)
 
+    def test_checkpoint_training_readiness_plan_and_assets_exist(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        manifest = (repo / "kubernetes" / "checkpointed-training-jobset.yaml").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "checkpointed-distributed-training.md").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = demo(root)
+            report = build_checkpoint_training_readiness_plan(root)
+            dashboard = (root / "reports" / "training_orchestration_dashboard.html").read_text(encoding="utf-8")
+            index = (root / "reports" / "index.html").read_text(encoding="utf-8")
+
+            self.assertTrue(result["checkpoint_training"]["passed"])
+            self.assertTrue(report["passed"])
+            self.assertEqual(report["recommended_action"], "adopt_checkpointed_jobset_training_contract")
+            self.assertEqual(report["capacity"]["protected_queue"], "demand-training-queue")
+            self.assertTrue(all(item["passed"] for item in report["resume_windows"]))
+            self.assertTrue(any(check["name"] == "metaflow_checkpoint_scope_declared" for check in report["checks"]))
+            self.assertTrue((root / "reports" / "checkpoint_training_readiness_plan.json").exists())
+            self.assertIn("Checkpointed Distributed Training", dashboard)
+            self.assertIn("Checkpoint Recovery Timeline", dashboard)
+            self.assertIn("checkpoint_training_readiness_plan.json", index)
+        for expected in ["JobSet", "replicatedJobs", "METAFLOW_CHECKPOINT_SCOPE", "completionMode: Indexed", "kueue.x-k8s.io/queue-name", "MetaflowCheckpointRestoreSlow"]:
+            self.assertIn(expected, manifest)
+        for expected in ["Metaflow", "checkpoint", "JobSet", "Kueue", "resume", "Airflow"]:
+            self.assertIn(expected, docs)
+
     def test_dag_bundle_versioning_plan_and_airflow_assets_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         config = (repo / "airflow" / "dag-bundle-config.ini").read_text(encoding="utf-8")
@@ -620,6 +780,24 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
         for expected in ["CronPartitionTimetable", "PartitionedAssetTimetable", "StartOfHourMapper", "dag_run.partition_key", "partitioned_model_registration_gate"]:
             self.assertIn(expected, dag)
 
+    def test_airflow33_stateful_orchestration_contract(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        dag = (repo / "airflow" / "dags" / "airflow33_stateful_training_dag.py").read_text(encoding="utf-8")
+        docs = (repo / "docs" / "airflow-stateful-orchestration.md").read_text(encoding="utf-8")
+        ci = (repo / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        validator = (repo / "tools" / "validate_airflow33_dag.py").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            report = build_airflow_stateful_orchestration_plan(tmp, repo_root=repo)
+
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["recommended_action"], "adopt_airflow_33_stateful_training_contract")
+        self.assertIn("real_airflow_parse_gate", {check["name"] for check in report["checks"] if check["passed"]})
+        for expected in ["task_state_store", "asset_state_store", "NEVER_EXPIRE", "ExceptionRetryPolicy", "RollupMapper", "FanOutMapper", "PartitionedAtRuntime"]:
+            self.assertIn(expected, dag)
+        self.assertIn("dag.validate()", validator)
+        self.assertIn("apache-airflow==3.3.0", ci)
+        self.assertIn("Production Boundary", docs)
+
     def test_multi_team_readiness_plan_and_airflow_config_exist(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         docs = (repo / "docs" / "airflow-multi-team-readiness.md").read_text(encoding="utf-8")
@@ -657,8 +835,10 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(report["recommended_action"], "enable_airflow3_training_event_assets")
             self.assertEqual(report["asset_expression"], "(RAW_SALES & PARTITION_MANIFESTS) | FAILED_PARTITION_REPLAY")
             self.assertTrue(all(asset["trigger_base_class"] == "BaseEventTrigger" for asset in report["event_assets"]))
+            self.assertTrue(report["ha_watcher_dedupe_simulation"]["passed"])
+            self.assertEqual(report["ha_watcher_dedupe_simulation"]["suppressed_duplicates"], 2)
             self.assertTrue((root / "reports" / "event_driven_assets_plan.json").exists())
-        for expected in ["AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias", "conditional asset expression"]:
+        for expected in ["AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias", "conditional asset expression", "HA triggerer duplicate suppression"]:
             self.assertIn(expected, docs)
         for expected in ["EVENT_DRIVEN_ASSET_EXPRESSION", "AssetWatcher", "BaseEventTrigger", "shared_stream_key", "AssetAlias"]:
             self.assertIn(expected, dag)
@@ -915,6 +1095,10 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(report["recommended_action"], "enable_airflow3_deadline_alerts")
             self.assertEqual(report["runtime_config"]["AIRFLOW__CALLBACKS__CALLBACK_EXECUTION_TIMEOUT"], "300")
             self.assertTrue(any(policy["name"] == "failed_partition_recovery" for policy in report["deadline_policies"]))
+            self.assertIn("callback_contracts", report)
+            self.assertIn("page_recovery_owner", report["callback_contracts"])
+            self.assertTrue(all(policy["callback_contract"]["dedupe_key"] for policy in report["deadline_policies"]))
+            self.assertTrue(all("allowed_side_effect" in policy["callback_contract"] for policy in report["deadline_policies"]))
             self.assertTrue((root / "reports" / "deadline_alert_plan.json").exists())
         for expected in ["Deadline Alerts", "legacy Airflow 2 SLA", "Kueue", "failed partition"]:
             self.assertIn(expected, docs)
@@ -985,8 +1169,10 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertIn("provisioning_admission_checks", names)
             self.assertIn("multikueue_dispatch", names)
             self.assertIn("oci_image_volume_artifacts", names)
+            self.assertIn("checkpointed_distributed_training", names)
             self.assertIn("airflow_dag_bundle_versioning", names)
             self.assertIn("airflow_asset_partitioning", names)
+            self.assertIn("airflow_stateful_orchestration", names)
             self.assertIn("airflow_multi_team_readiness", names)
             self.assertIn("airflow_event_driven_assets", names)
             self.assertIn("pod_resource_envelopes", names)
@@ -1061,6 +1247,8 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
                 "oci_artifact_volume_plan.json",
                 "dag_bundle_versioning_plan.json",
                 "asset_partitioning_plan.json",
+                "airflow_stateful_orchestration_plan.json",
+                "reliability_signal_mesh.html",
                 "multi_team_readiness_plan.json",
                 "event_driven_assets_plan.json",
                 "pod_resource_envelope_plan.json",
@@ -1118,7 +1306,29 @@ class TrainingOrchestrationPlatformTest(unittest.TestCase):
             self.assertEqual(result["idempotent_backfill"]["skipped_count"], 3)
             self.assertEqual(result["failure_drill"]["failed_count"], 1)
             self.assertEqual(result["recovery"]["status"], "success")
-            self.assertTrue((root / "reports" / "training_orchestration_dashboard.html").exists())
+            summary = demo_summary(root, result)
+            self.assertEqual(summary["pipeline"]["successful_runs"], 6)
+            self.assertEqual(summary["pipeline"]["failed_runs"], 1)
+            self.assertEqual(summary["next_command"], "make metaflow-runtime-contract")
+            self.assertLess(len(str(summary)), 1_000)
+            dashboard_path = root / "reports" / "training_orchestration_dashboard.html"
+            self.assertTrue(dashboard_path.exists())
+            dashboard = dashboard_path.read_text()
+            self.assertIn("Backfill Capacity Lab", dashboard)
+            self.assertIn("Training Evidence", dashboard)
+            self.assertIn('data-testid="release-evidence"', dashboard)
+            self.assertIn("Run Review", dashboard)
+            self.assertIn('data-testid="run-review"', dashboard)
+            self.assertIn("edge-tts neural narration", dashboard)
+            self.assertIn("function renderDemoTheater", dashboard)
+            self.assertIn("Training graph and cards are reproducible", dashboard)
+            self.assertIn("Checkpoint Recovery Timeline", dashboard)
+            self.assertIn('data-testid="backfill-capacity-lab"', dashboard)
+            self.assertIn('data-testid="checkpoint-recovery-timeline"', dashboard)
+            self.assertIn("function packWaves", dashboard)
+            self.assertIn("function renderCheckpointTimeline", dashboard)
+            self.assertIn('"model_family":"inventory_capped"', dashboard)
+            self.assertIn('"demand-transformer-weekly"', dashboard)
             self.assertTrue((root / "reports" / "index.html").exists())
             self.assertTrue((root / "reports" / "accelerator_capacity_plan.json").exists())
             self.assertTrue((root / "reports" / "device_allocation_plan.json").exists())

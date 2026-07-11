@@ -6,7 +6,25 @@ import statistics
 from .data import SKUS
 
 
-def train_forecaster(rows: list[dict], *, version: str) -> dict:
+def train_forecaster(
+    rows: list[dict],
+    *,
+    version: str,
+    price_coefficient: float = -1.25,
+    promo_lift_scale: float = 1.0,
+    inventory_cap_enabled: bool = True,
+) -> dict:
+    if not rows:
+        raise ValueError("training rows cannot be empty")
+    if not -4.0 <= price_coefficient <= 0.0:
+        raise ValueError("price_coefficient must be between -4.0 and 0.0")
+    if not 0.0 <= promo_lift_scale <= 3.0:
+        raise ValueError("promo_lift_scale must be between 0.0 and 3.0")
+    if not isinstance(inventory_cap_enabled, bool):
+        raise ValueError("inventory_cap_enabled must be a boolean")
+    missing_skus = sorted(set(SKUS) - {str(row.get("sku")) for row in rows})
+    if missing_skus:
+        raise ValueError(f"training rows are missing SKUs: {missing_skus}")
     sku_means = {}
     promo_lifts = {}
     global_mean = statistics.mean(float(row["units_sold"]) for row in rows)
@@ -15,15 +33,23 @@ def train_forecaster(rows: list[dict], *, version: str) -> dict:
         sku_means[sku] = round(statistics.mean(float(row["units_sold"]) for row in sku_rows), 4)
         promo_rows = [float(row["units_sold"]) for row in sku_rows if str(row["promo"]) == "1"]
         non_promo_rows = [float(row["units_sold"]) for row in sku_rows if str(row["promo"]) == "0"]
-        promo_lifts[sku] = round((statistics.mean(promo_rows) if promo_rows else sku_means[sku]) - (statistics.mean(non_promo_rows) if non_promo_rows else sku_means[sku]), 4)
+        observed_lift = (statistics.mean(promo_rows) if promo_rows else sku_means[sku]) - (
+            statistics.mean(non_promo_rows) if non_promo_rows else sku_means[sku]
+        )
+        promo_lifts[sku] = round(observed_lift * promo_lift_scale, 4)
     return {
         "name": "daily-demand-forecaster",
         "version": version,
         "global_mean": round(global_mean, 4),
         "sku_means": sku_means,
         "promo_lifts": promo_lifts,
-        "price_coefficient": -1.25,
-        "inventory_cap_enabled": True,
+        "price_coefficient": price_coefficient,
+        "inventory_cap_enabled": inventory_cap_enabled,
+        "training_config": {
+            "price_coefficient": price_coefficient,
+            "promo_lift_scale": promo_lift_scale,
+            "inventory_cap_enabled": inventory_cap_enabled,
+        },
     }
 
 

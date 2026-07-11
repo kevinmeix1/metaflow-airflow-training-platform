@@ -7,9 +7,12 @@ from pathlib import Path
 from .accelerator_plan import build_accelerator_capacity_plan
 from .admin_access_diagnostics import build_admin_access_diagnostic_plan
 from .advanced_device_sharing import build_advanced_device_sharing_plan
+from .ai_workload_telemetry import build_ai_workload_telemetry_plan
+from .airflow_stateful_orchestration import build_airflow_stateful_orchestration_plan
 from .artifact_index import render_artifact_index
 from .asset_partitioning import build_asset_partitioning_plan
 from .capacity_planner import build_backfill_plan
+from .checkpoint_training_readiness import build_checkpoint_training_readiness_plan
 from .chaos import run_chaos_drill
 from .cloud_migration import build_cloud_migration_plan
 from .cohort_fair_sharing import build_cohort_fair_sharing_plan
@@ -18,6 +21,7 @@ from .constrained_impersonation import build_constrained_impersonation_plan
 from .cost_observability import build_cost_observability_report
 from .dag_bundle_versioning import build_dag_bundle_versioning_plan
 from .dashboard import render_dashboard
+from .demo_cockpit import build_judge_demo_cockpit, build_operator_drill_lab
 from .deadline_alerts import build_deadline_alert_plan
 from .device_allocation import build_device_allocation_plan
 from .disaster_recovery import build_disaster_recovery_plan
@@ -35,10 +39,13 @@ from .kuberay_capacity import build_kuberay_capacity_plan
 from .memory_qos import build_memory_qos_plan
 from .multi_team_readiness import build_multi_team_readiness_plan
 from .multikueue_dispatch import build_multikueue_dispatch_plan
+from .narrated_demo_studio import build_narrated_demo_studio
 from .network_security import build_network_security_report
-from .orchestrator import backfill, run_partition
+from .io import read_jsonl
+from .orchestrator import backfill, run_log_path, run_partition
 from .orchestration_scorecard import build_orchestration_scorecard
 from .oci_artifact_volume import build_oci_artifact_volume_plan
+from .operational_readiness import build_operational_readiness_review
 from .pending_workload_visibility import build_pending_workload_visibility_plan
 from .policy_audit import audit_platform_policy
 from .performance_budget import build_performance_budget_report
@@ -46,6 +53,7 @@ from .pod_resource_envelopes import build_pod_resource_envelope_plan
 from .provisioning_admission import build_provisioning_admission_plan
 from .queue_simulator import build_queue_simulation
 from .release_admission import build_release_admission_decision
+from .reliability_signal_mesh import build_reliability_signal_mesh
 from .resource_health_status import build_resource_health_status_plan
 from .resource_optimizer import build_resource_optimization_report
 from .runtime_security import build_runtime_security_plan
@@ -98,6 +106,7 @@ def demo(output: str | Path) -> dict:
     multikueue_dispatch = build_multikueue_dispatch_plan(root)
     dag_bundle_versioning = build_dag_bundle_versioning_plan(root)
     asset_partitioning = build_asset_partitioning_plan(root)
+    airflow_stateful_orchestration = build_airflow_stateful_orchestration_plan(root)
     multi_team_readiness = build_multi_team_readiness_plan(root)
     event_driven_assets = build_event_driven_assets_plan(root)
     pod_resource_envelopes = build_pod_resource_envelope_plan(root)
@@ -116,6 +125,8 @@ def demo(output: str | Path) -> dict:
     suspended_job_resources = build_suspended_job_resource_plan(root)
     constrained_impersonation = build_constrained_impersonation_plan(root)
     oci_artifact_volume = build_oci_artifact_volume_plan(root)
+    checkpoint_training = build_checkpoint_training_readiness_plan(root)
+    ai_workload_telemetry = build_ai_workload_telemetry_plan(root)
     dashboard = render_dashboard(root, root / "reports" / "training_orchestration_dashboard.html")
     supply_chain = build_supply_chain_evidence(
         root,
@@ -125,10 +136,37 @@ def demo(output: str | Path) -> dict:
         namespace="mlops-training",
     )
     release_admission = build_release_admission_decision(root)
+    operational_readiness = build_operational_readiness_review(root)
+    judge_demo_cockpit = build_judge_demo_cockpit(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        primary_dashboard="training_orchestration_dashboard.html",
+        demo_video="../../docs/demo/training-judge-demo.mp4",
+    )
+    operator_drill = build_operator_drill_lab(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        scenario="Backfill partition failure collides with checkpoint recovery and capacity throttling",
+        primary_dashboard="training_orchestration_dashboard.html",
+        runbook="../../docs/runbook.md",
+    )
+    reliability_signal_mesh = build_reliability_signal_mesh(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        domain="Partitioned training and backfill recovery",
+        primary_dashboard="training_orchestration_dashboard.html",
+    )
+    narrated_demo_studio = build_narrated_demo_studio(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        domain="Partitioned training and backfill recovery",
+        primary_dashboard="training_orchestration_dashboard.html",
+        demo_video="../../docs/demo/training-judge-demo.mp4",
+    )
     artifact_index = render_artifact_index(
         root,
         title="Metaflow Airflow Training Platform",
-        description="Reviewer landing page for generated training dashboard, lineage, backfill evidence, SLOs, and migration artifacts.",
+        description="Generated registry for training runs, lineage, backfill decisions, SLO budgets, and recovery evidence.",
         dashboard="training_orchestration_dashboard.html",
     )
     orchestration_scorecard = build_orchestration_scorecard(root, project="Metaflow Airflow Training Platform")
@@ -166,6 +204,7 @@ def demo(output: str | Path) -> dict:
         "multikueue_dispatch": multikueue_dispatch,
         "dag_bundle_versioning": dag_bundle_versioning,
         "asset_partitioning": asset_partitioning,
+        "airflow_stateful_orchestration": airflow_stateful_orchestration,
         "multi_team_readiness": multi_team_readiness,
         "event_driven_assets": event_driven_assets,
         "pod_resource_envelopes": pod_resource_envelopes,
@@ -184,11 +223,52 @@ def demo(output: str | Path) -> dict:
         "suspended_job_resources": suspended_job_resources,
         "constrained_impersonation": constrained_impersonation,
         "oci_artifact_volume": oci_artifact_volume,
+        "checkpoint_training": checkpoint_training,
+        "ai_workload_telemetry": ai_workload_telemetry,
         "release_admission": release_admission,
+        "operational_readiness": operational_readiness,
+        "judge_demo_cockpit": judge_demo_cockpit,
+        "operator_drill": operator_drill,
+        "reliability_signal_mesh": reliability_signal_mesh,
+        "narrated_demo_studio": narrated_demo_studio,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,
         "supply_chain": supply_chain,
+    }
+
+
+def demo_summary(output: str | Path, result: dict) -> dict:
+    root = Path(output)
+    pipeline_events = [
+        item
+        for item in read_jsonl(run_log_path(root))
+        if item.get("task") == "pipeline"
+    ]
+    return {
+        "status": "completed",
+        "pipeline": {
+            "successful_runs": sum(
+                item.get("status") == "success" for item in pipeline_events
+            ),
+            "failed_runs": sum(
+                item.get("status") == "failed" for item in pipeline_events
+            ),
+            "recovered_partition": result["recovery"]["ds"],
+        },
+        "control_plane": {
+            "orchestration_score": result["orchestration_scorecard"]["score"],
+            "release_action": result["release_admission"]["decision"][
+                "recommended_action"
+            ],
+            "release_freeze": result["slo_error_budget"]["release_freeze"],
+        },
+        "artifacts": {
+            "report_count": len(list((root / "reports").glob("*"))),
+            "dashboard": result["dashboard"],
+            "index": result["artifact_index"],
+        },
+        "next_command": "make metaflow-runtime-contract",
     }
 
 
@@ -287,6 +367,8 @@ def main(argv: list[str] | None = None) -> int:
     dag_bundle_parser.add_argument("--output", default=".local")
     asset_partitioning_parser = sub.add_parser("asset-partitioning-plan")
     asset_partitioning_parser.add_argument("--output", default=".local")
+    airflow_stateful_parser = sub.add_parser("airflow-stateful-orchestration")
+    airflow_stateful_parser.add_argument("--output", default=".local")
     multi_team_parser = sub.add_parser("multi-team-readiness")
     multi_team_parser.add_argument("--output", default=".local")
     event_assets_parser = sub.add_parser("event-driven-assets")
@@ -323,11 +405,14 @@ def main(argv: list[str] | None = None) -> int:
     constrained_impersonation_parser.add_argument("--output", default=".local")
     artifact_volume_parser = sub.add_parser("oci-artifact-volumes")
     artifact_volume_parser.add_argument("--output", default=".local")
+    checkpoint_training_parser = sub.add_parser("checkpoint-training-readiness")
+    checkpoint_training_parser.add_argument("--output", default=".local")
     admission_parser = sub.add_parser("release-admission")
     admission_parser.add_argument("--output", default=".local")
     args = parser.parse_args(argv)
     if args.command == "demo":
-        print(json.dumps(demo(args.output), indent=2, sort_keys=True))
+        result = demo(args.output)
+        print(json.dumps(demo_summary(args.output, result), indent=2, sort_keys=True))
     elif args.command == "run":
         print(json.dumps(run_partition(args.output, args.date, force=args.force), indent=2, sort_keys=True))
     elif args.command == "backfill":
@@ -396,6 +481,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_dag_bundle_versioning_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "asset-partitioning-plan":
         print(json.dumps(build_asset_partitioning_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "airflow-stateful-orchestration":
+        print(json.dumps(build_airflow_stateful_orchestration_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "multi-team-readiness":
         print(json.dumps(build_multi_team_readiness_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "event-driven-assets":
@@ -432,6 +519,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_constrained_impersonation_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "oci-artifact-volumes":
         print(json.dumps(build_oci_artifact_volume_plan(args.output), indent=2, sort_keys=True))
+    elif args.command == "checkpoint-training-readiness":
+        print(json.dumps(build_checkpoint_training_readiness_plan(args.output), indent=2, sort_keys=True))
     elif args.command == "release-admission":
         print(json.dumps(build_release_admission_decision(args.output), indent=2, sort_keys=True))
     return 0

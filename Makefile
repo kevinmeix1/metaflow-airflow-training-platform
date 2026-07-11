@@ -1,4 +1,11 @@
-.PHONY: demo run backfill plan-backfill dashboard policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes release-admission ci-verify kubernetes-plan minikube-up test clean
+.PHONY: demo run backfill plan-backfill dashboard demo-voice demo-video metaflow-run metaflow-verify metaflow-runtime-contract metaflow-resume-contract lint-metaflow verify-metaflow-lock package package-smoke policy-audit trace-report chaos-drill optimize-resources network-security gitops-plan dr-plan governance-bundle slo-report cloud-plan supply-chain orchestration-scorecard accelerator-plan device-plan resource-health-status advanced-device-sharing admin-access-diagnostics inplace-resize-plan topology-plan kuberay-plan inference-gateway-plan semantic-telemetry-plan deadline-alerts-plan cost-observability elastic-workload-plan indexed-job-resilience provisioning-admission multikueue-dispatch dag-bundle-plan asset-partitioning-plan airflow-stateful-orchestration airflow-sdk-contract multi-team-readiness event-driven-assets pod-resource-envelopes cohort-fair-sharing flavor-fungibility pending-workload-visibility tenancy-report identity-report performance-budget queue-simulation workload-aware-scheduling runtime-security control-plane-diagnostics memory-qos hpa-scale-zero suspended-job-resources constrained-impersonation oci-artifact-volumes checkpoint-training-readiness release-admission ci-verify kubernetes-plan minikube-up test clean
+
+PYTHON ?= python3
+METAFLOW_PYTHON ?= $(PYTHON)
+METAFLOW_RUN_DATE ?= 2026-06-08
+METAFLOW_RESUME_DATE ?= 2026-06-09
+METAFLOW_DATASTORE_ROOT := $(CURDIR)/.local/metaflow/datastore
+METAFLOW_ENV := METAFLOW_DEFAULT_DATASTORE=local METAFLOW_DATASTORE_SYSROOT_LOCAL="$(METAFLOW_DATASTORE_ROOT)" METAFLOW_CARD_LOCALROOT="$(METAFLOW_DATASTORE_ROOT)" METAFLOW_DEFAULT_METADATA=local PYTHONPATH="$(CURDIR)/src"
 
 demo:
 	PYTHONPATH=src python3 -m training_orchestration_platform demo --output .local
@@ -14,6 +21,39 @@ plan-backfill:
 
 dashboard:
 	PYTHONPATH=src python3 -m training_orchestration_platform dashboard --output .local
+
+demo-voice:
+	$(PYTHON) tools/generate_demo_voice.py
+
+demo-video:
+	bash tools/build_demo_video.sh
+
+metaflow-run:
+	mkdir -p "$(METAFLOW_DATASTORE_ROOT)"
+	$(METAFLOW_ENV) "$(METAFLOW_PYTHON)" metaflow_flows/demand_training_flow.py run --max-workers 4 --ds "$(METAFLOW_RUN_DATE)" --output "$(CURDIR)/.local"
+
+metaflow-verify:
+	$(METAFLOW_ENV) "$(METAFLOW_PYTHON)" tools/verify_metaflow_run.py --output "$(CURDIR)/.local" --datastore-root "$(METAFLOW_DATASTORE_ROOT)" --expected-candidates 4
+
+metaflow-runtime-contract: metaflow-run metaflow-verify dashboard
+
+metaflow-resume-contract:
+	mkdir -p "$(METAFLOW_DATASTORE_ROOT)"
+	$(METAFLOW_ENV) "$(METAFLOW_PYTHON)" tools/verify_metaflow_resume.py --flow "$(CURDIR)/metaflow_flows/demand_training_flow.py" --output "$(CURDIR)/.local" --datastore-root "$(METAFLOW_DATASTORE_ROOT)" --partition "$(METAFLOW_RESUME_DATE)" --expected-candidates 4
+	PYTHONPATH=src $(PYTHON) -m training_orchestration_platform dashboard --output .local
+
+lint-metaflow:
+	$(METAFLOW_PYTHON) -m ruff check src metaflow_flows tests tools
+
+verify-metaflow-lock:
+	$(METAFLOW_PYTHON) tools/verify_locked_environment.py requirements-metaflow.lock
+
+package:
+	rm -rf build dist
+	$(METAFLOW_PYTHON) -m build --no-isolation --wheel
+
+package-smoke: package
+	$(METAFLOW_PYTHON) tools/smoke_wheel.py
 
 policy-audit:
 	PYTHONPATH=src python3 -m training_orchestration_platform policy-audit --output .local
@@ -105,6 +145,12 @@ dag-bundle-plan:
 asset-partitioning-plan:
 	PYTHONPATH=src python3 -m training_orchestration_platform asset-partitioning-plan --output .local
 
+airflow-stateful-orchestration:
+	PYTHONPATH=src python3 -m training_orchestration_platform airflow-stateful-orchestration --output .local
+
+airflow-sdk-contract:
+	python3 tools/validate_airflow33_dag.py airflow/dags/airflow33_stateful_training_dag.py
+
 multi-team-readiness:
 	PYTHONPATH=src python3 -m training_orchestration_platform multi-team-readiness --output .local
 
@@ -159,11 +205,16 @@ constrained-impersonation:
 oci-artifact-volumes:
 	PYTHONPATH=src python3 -m training_orchestration_platform oci-artifact-volumes --output .local
 
+checkpoint-training-readiness:
+	PYTHONPATH=src python3 -m training_orchestration_platform checkpoint-training-readiness --output .local
+
 release-admission:
 	PYTHONPATH=src python3 -m training_orchestration_platform release-admission --output .local
 
 ci-verify:
 	PYTHONPATH=src python3 -m compileall -q src tests
+	test -f docs/demo/training-judge-demo.mp4
+	test $$(wc -c < docs/demo/training-judge-demo.mp4) -gt 1000000
 	test -f .local/reports/training_orchestration_dashboard.html
 	test -f .local/reports/index.html
 	test -f .local/reports/governance_evidence_bundle.json
@@ -189,6 +240,7 @@ ci-verify:
 	test -f .local/reports/multikueue_dispatch_plan.json
 	test -f .local/reports/dag_bundle_versioning_plan.json
 	test -f .local/reports/asset_partitioning_plan.json
+	test -f .local/reports/airflow_stateful_orchestration_plan.json
 	test -f .local/reports/multi_team_readiness_plan.json
 	test -f .local/reports/event_driven_assets_plan.json
 	test -f .local/reports/pod_resource_envelope_plan.json
@@ -207,7 +259,20 @@ ci-verify:
 	test -f .local/reports/suspended_job_resources_plan.json
 	test -f .local/reports/constrained_impersonation_plan.json
 	test -f .local/reports/oci_artifact_volume_plan.json
+	test -f .local/reports/checkpoint_training_readiness_plan.json
+	test -f .local/reports/ai_workload_telemetry_plan.json
 	test -f .local/reports/release_admission_decision.json
+	test -f .local/reports/operational_readiness_review.json
+	test -f .local/reports/judge_demo_cockpit.html
+	test -f .local/reports/judge_demo_cockpit_manifest.json
+	test -f .local/reports/operator_drill_lab.html
+	test -f .local/reports/operator_drill_report.json
+	test -f .local/reports/reliability_signal_mesh.html
+	test -f .local/reports/reliability_signal_mesh.json
+	test -f .local/reports/narrated_demo_studio.html
+	test -f .local/reports/narrated_demo_studio.json
+	test -f .local/reports/remotion_demo_props.json
+	test -f .local/reports/narrated_demo_subtitle_plan.srt
 	test -f .local/supply-chain/subject.checksums.txt
 	python3 -m json.tool .local/reports/governance_evidence_bundle.json >/dev/null
 	python3 -m json.tool .local/reports/slo_error_budget.json >/dev/null
@@ -232,6 +297,7 @@ ci-verify:
 	python3 -m json.tool .local/reports/multikueue_dispatch_plan.json >/dev/null
 	python3 -m json.tool .local/reports/dag_bundle_versioning_plan.json >/dev/null
 	python3 -m json.tool .local/reports/asset_partitioning_plan.json >/dev/null
+	python3 -m json.tool .local/reports/airflow_stateful_orchestration_plan.json >/dev/null
 	python3 -m json.tool .local/reports/multi_team_readiness_plan.json >/dev/null
 	python3 -m json.tool .local/reports/event_driven_assets_plan.json >/dev/null
 	python3 -m json.tool .local/reports/pod_resource_envelope_plan.json >/dev/null
@@ -250,7 +316,15 @@ ci-verify:
 	python3 -m json.tool .local/reports/suspended_job_resources_plan.json >/dev/null
 	python3 -m json.tool .local/reports/constrained_impersonation_plan.json >/dev/null
 	python3 -m json.tool .local/reports/oci_artifact_volume_plan.json >/dev/null
+	python3 -m json.tool .local/reports/checkpoint_training_readiness_plan.json >/dev/null
+	python3 -m json.tool .local/reports/ai_workload_telemetry_plan.json >/dev/null
 	python3 -m json.tool .local/reports/release_admission_decision.json >/dev/null
+	python3 -m json.tool .local/reports/operational_readiness_review.json >/dev/null
+	python3 -m json.tool .local/reports/judge_demo_cockpit_manifest.json >/dev/null
+	python3 -m json.tool .local/reports/operator_drill_report.json >/dev/null
+	python3 -m json.tool .local/reports/reliability_signal_mesh.json >/dev/null
+	python3 -m json.tool .local/reports/narrated_demo_studio.json >/dev/null
+	python3 -m json.tool .local/reports/remotion_demo_props.json >/dev/null
 
 kubernetes-plan:
 	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
@@ -280,6 +354,7 @@ minikube-up:
 	@echo "  kubectl apply -f kubernetes/provisioning-admission-checks.yaml"
 	@echo "  kubectl apply -f kubernetes/multikueue-dispatch.yaml"
 	@echo "  kubectl apply -f kubernetes/oci-artifact-volumes.yaml"
+	@echo "  kubectl apply -f kubernetes/checkpointed-training-jobset.yaml"
 	@echo "  kubectl apply -f kubernetes/pod-resource-envelopes.yaml"
 	@echo "  kubectl apply -f kubernetes/kueue-cohort-fair-sharing.yaml"
 	@echo "  kubectl apply -f kubernetes/kueue-flavor-fungibility.yaml"
@@ -302,4 +377,4 @@ test:
 	PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 clean:
-	rm -rf .local
+	rm -rf .local .metaflow

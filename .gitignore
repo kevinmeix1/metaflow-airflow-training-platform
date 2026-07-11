@@ -1,5 +1,6 @@
 .DS_Store
 .local/
+.metaflow/
 .venv/
 __pycache__/
 *.pyc
@@ -7,3 +8,6 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .env
+build/
+dist/
+*.egg-info/
