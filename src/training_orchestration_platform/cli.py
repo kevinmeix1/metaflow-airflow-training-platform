@@ -39,6 +39,7 @@ from .kuberay_capacity import build_kuberay_capacity_plan
 from .memory_qos import build_memory_qos_plan
 from .multi_team_readiness import build_multi_team_readiness_plan
 from .multikueue_dispatch import build_multikueue_dispatch_plan
+from .narrated_demo_studio import build_narrated_demo_studio
 from .network_security import build_network_security_report
 from .io import read_jsonl
 from .orchestrator import backfill, run_log_path, run_partition
@@ -155,6 +156,13 @@ def demo(output: str | Path) -> dict:
         domain="Partitioned training and backfill recovery",
         primary_dashboard="training_orchestration_dashboard.html",
     )
+    narrated_demo_studio = build_narrated_demo_studio(
+        root,
+        project_name="Metaflow Airflow Training Platform",
+        domain="Partitioned training and backfill recovery",
+        primary_dashboard="training_orchestration_dashboard.html",
+        demo_video="../../docs/demo/training-judge-demo.mp4",
+    )
     artifact_index = render_artifact_index(
         root,
         title="Metaflow Airflow Training Platform",
@@ -222,6 +230,7 @@ def demo(output: str | Path) -> dict:
         "judge_demo_cockpit": judge_demo_cockpit,
         "operator_drill": operator_drill,
         "reliability_signal_mesh": reliability_signal_mesh,
+        "narrated_demo_studio": narrated_demo_studio,
         "dashboard": str(dashboard),
         "artifact_index": str(artifact_index),
         "orchestration_scorecard": orchestration_scorecard,

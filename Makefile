@@ -269,6 +269,10 @@ ci-verify:
 	test -f .local/reports/operator_drill_report.json
 	test -f .local/reports/reliability_signal_mesh.html
 	test -f .local/reports/reliability_signal_mesh.json
+	test -f .local/reports/narrated_demo_studio.html
+	test -f .local/reports/narrated_demo_studio.json
+	test -f .local/reports/remotion_demo_props.json
+	test -f .local/reports/narrated_demo_subtitle_plan.srt
 	test -f .local/supply-chain/subject.checksums.txt
 	python3 -m json.tool .local/reports/governance_evidence_bundle.json >/dev/null
 	python3 -m json.tool .local/reports/slo_error_budget.json >/dev/null
@@ -319,6 +323,8 @@ ci-verify:
 	python3 -m json.tool .local/reports/judge_demo_cockpit_manifest.json >/dev/null
 	python3 -m json.tool .local/reports/operator_drill_report.json >/dev/null
 	python3 -m json.tool .local/reports/reliability_signal_mesh.json >/dev/null
+	python3 -m json.tool .local/reports/narrated_demo_studio.json >/dev/null
+	python3 -m json.tool .local/reports/remotion_demo_props.json >/dev/null
 
 kubernetes-plan:
 	@find kubernetes gitops -name '*.yaml' -maxdepth 3 -print
